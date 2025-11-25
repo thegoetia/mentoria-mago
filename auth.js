@@ -132,7 +132,16 @@ await db.collection('users').doc(uid).set({
       if(!email) return toast('Digite um email');
       try {
         // find user by email
-        const snap = await db.collection('users').where('email','==',email).get();
+        let snap = await db.collection('users')
+  .where('emailLower', '==', email.toLowerCase())
+  .get();
+
+// fallback caso o índice não exista ou o campo não exista no usuário mais antigo
+if (snap.empty){
+  snap = await db.collection('users')
+    .where('email', '==', email)
+    .get();
+}
         if (snap.empty) return toast('Usuário não encontrado (peça para ele se registrar primeiro).');
         snap.forEach(async docSnap => {
           await db.collection('users').doc(docSnap.id).update({ authorized: true });
