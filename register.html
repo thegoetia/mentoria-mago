@@ -1,30 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Registro - Mentoria</title>
-  <link rel="stylesheet" href="style.css">
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Registro • Mentoria</title>
+  <link rel="stylesheet" href="style.css" />
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
   <script src="firebase.js"></script>
   <script src="auth.js" defer></script>
 </head>
-
 <body>
-  <div class="login-box">
-    <h2>Criar Conta</h2>
+  <main class="container auth-page">
+    <section class="card form-card">
+      <div class="brand">
+        <h1>Mentoria</h1>
+        <button id="themeToggle" class="btn small" onclick="Theme.toggle()">Light</button>
+      </div>
 
-    <form id="registerForm">
-      <input type="email" id="regEmail" placeholder="Email" required>
-      <input type="password" id="regPassword" placeholder="Senha" required>
-      <button type="submit">Registrar</button>
-    </form>
+      <h2>Criar nova conta</h2>
 
-    <p style="margin-top: 10px;">
-      Já tem conta?
-      <a style="color:#4caf50;" href="index.html">Fazer login</a>
-    </p>
-  </div>
+      <form id="registerForm" class="form">
+        <label class="input">
+          <input id="regName" type="text" placeholder=" " />
+          <span class="label-text">Nome (opcional)</span>
+        </label>
+
+        <label class="input">
+          <input id="regEmail" type="email" placeholder=" " required />
+          <span class="label-text">Email</span>
+        </label>
+
+        <label class="input">
+          <input id="regPassword" type="password" placeholder=" " required />
+          <span class="label-text">Senha</span>
+        </label>
+
+        <button class="btn primary" type="submit">Criar conta</button>
+      </form>
+
+      <div class="row">
+        <a href="index.html" class="link">Voltar ao login</a>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
