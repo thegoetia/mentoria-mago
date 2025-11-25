@@ -6,42 +6,36 @@
   <title>Meu Painel • Mentoria</title>
   <link rel="stylesheet" href="style.css" />
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
   <script src="firebase.js"></script>
   <script src="auth.js" defer></script>
 
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const supabase = window.supabase.createClient(
+      "https://xjmmgvbzfsgjltzggysv.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4"
+    );
+  </script>
+
   <style>
-    /* Player padrão responsivo */
     .video-card { width: 100%; margin-bottom: 30px; }
 
-    .iframe-protect {
-      position: relative;
+    .video-player {
       width: 100%;
-      padding-top: 56.25%;
-      background: #000;
       border-radius: 12px;
+      background: #000;
       overflow: hidden;
     }
 
-    .iframe-protect iframe {
-      position: absolute;
-      inset: 0;
+    video {
       width: 100%;
-      height: 100%;
-      border: 0;
-      pointer-events: none; /* protege o player até clicar */
-    }
-
-    /* camada invisível que impede clicar/abrir o link do YouTube */
-    .video-overlay {
-      position: absolute;
-      inset: 0;
-      background: transparent;
-      cursor: pointer;
-      z-index: 5;
+      height: auto;
+      pointer-events: auto;
     }
 
     .video-title {
@@ -50,11 +44,9 @@
       text-align: center;
     }
   </style>
-
 </head>
 
 <body oncontextmenu="return false">
-
 <header class="site-header">
   <div class="container header-inner">
     <h2>Mentoria</h2>
@@ -78,50 +70,37 @@
 </main>
 
 <script>
-
 firebase.auth().onAuthStateChanged(async (user) => {
   if (!user) return window.location.href = 'index.html';
-
   const list = document.getElementById('videosList');
   list.innerHTML = '';
 
-  let snap;
-  try {
-    snap = await firebase.firestore().collection('videos')
-      .orderBy('createdAt','asc')
-      .get();
-  } catch(e) {
-    snap = await firebase.firestore().collection('videos').get();
-  }
-
-  if(snap.empty){
+  const snap = await firebase.firestore().collection('videos').orderBy('createdAt','asc').get();
+  if (snap.empty) {
     list.innerHTML = '<p>Nenhum vídeo disponível.</p>';
     document.getElementById('dashboard-content').style.display = 'block';
     return;
   }
 
-  snap.forEach(doc => {
+  snap.forEach(async doc => {
     const d = doc.data();
-    const ytId = d.ytId;
-    if(!ytId) return;
+    if (!d.storagePath) return;
 
-    const embedUrl =
-      `https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1&controls=1&disablekb=1`;
+    const { data, error } = await supabase.storage
+      .from('videos')
+      .createSignedUrl(d.storagePath, 60 * 60);
+
+    if (error || !data) return;
 
     const card = document.createElement('div');
     card.className = 'video-card';
 
     card.innerHTML = `
-      <div class="iframe-protect" oncontextmenu="return false;">
-        <div class="video-overlay"></div>
-
-        <iframe
-          src="${embedUrl}"
-          allow="encrypted-media; picture-in-picture; fullscreen"
-          allowfullscreen>
-        </iframe>
+      <div class="video-player">
+        <video controls disablePictureInPicture controlsList="nodownload">
+          <source src="${data.signedUrl}" type="video/mp4" />
+        </video>
       </div>
-
       <div class="video-title">${escapeHtml(d.title || 'Mentoria')}</div>
     `;
 
@@ -129,37 +108,11 @@ firebase.auth().onAuthStateChanged(async (user) => {
   });
 
   document.getElementById('dashboard-content').style.display = 'block';
-
-  // ===== libera o vídeo ao clicar no overlay =====
-  document.querySelectorAll(".video-overlay").forEach((overlay, i) => {
-    overlay.addEventListener("click", () => {
-      const iframe = overlay.parentElement.querySelector("iframe");
-      iframe.style.pointerEvents = "auto";  // libera interação
-      overlay.remove();                     // some a camada bloqueadora
-    });
-  });
-
 });
 
-
-// helper
 function escapeHtml(s){
-  if(!s) return '';
-  return s.replace(/[&<>"'\/]/g, c => ({
-    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;', '/':'&#x2F;'
-  })[c]);
+  return s ? s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])) : '';
 }
-
-
-// bloqueia atalho tipo Ctrl+U, Ctrl+Shift+I etc
-document.addEventListener('keydown', e => {
-  if (e.ctrlKey){
-    const block = ['u','s','c','i','p'];
-    if (block.includes(e.key.toLowerCase())) e.preventDefault();
-  }
-});
-
 </script>
-
 </body>
 </html>
