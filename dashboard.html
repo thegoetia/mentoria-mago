@@ -34,5 +34,33 @@
       <div id="videosList" class="videos-grid"></div>
     </section>
   </main>
+<script>
+// Bloquear botão direito
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+// Bloquear teclas perigosas
+document.addEventListener("keydown", function(e) {
+
+    if (e.ctrlKey) {
+        const blocked = ["u", "c", "v", "x", "s", "a", "p"];
+        if (blocked.includes(e.key.toLowerCase())) {
+            e.preventDefault();
+        }
+    }
+
+    // Bloqueia F12
+    if (e.key === "F12") {
+        e.preventDefault();
+    }
+
+    // Bloqueia Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+    if (e.ctrlKey && e.shiftKey) {
+        const blocked = ["i", "j", "c"];
+        if (blocked.includes(e.key.toLowerCase())) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
 </body>
 </html>
