@@ -1,1 +1,39 @@
-.
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Meu Painel • Mentoria</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <script src="firebase.js"></script>
+  <script src="auth.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h2>Mentoria</h2>
+      <div class="header-actions">
+        <button id="themeToggle" class="btn small" onclick="Theme.toggle()">Light</button>
+        <button id="logoutBtn" class="btn ghost">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="protected-content" class="content-area">
+      <div class="welcome card">
+        <h1>Bem-vindo à Mentoria</h1>
+        <p>Aqui estão suas aulas liberadas:</p>
+      </div>
+
+      <div id="videosList" class="videos-grid">
+        <!-- videos carregados por auth.js -->
+      </div>
+    </section>
+  </main>
+</body>
+</html>
