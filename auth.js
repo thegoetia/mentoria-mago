@@ -108,29 +108,64 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Admin: add video form (if present)
-  const addVideoForm = document.getElementById('addVideoForm');
-  if (addVideoForm){
-    addVideoForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const title = document.getElementById('videoTitle').value.trim();
-      const url = document.getElementById('videoUrl').value.trim();
-      const id = extractYouTubeID(url);
-      if(!id) return toast('URL do YouTube inválida');
-      try {
-        await db.collection('videos').add({
-          title: title || null,
-          ytId: id,
-          createdAt: Date.now()
-        });
-        toast('Vídeo adicionado');
-        addVideoForm.reset();
-        loadAdminLists();
-      } catch(err){
-        toast(err.message);
-      }
+  /* SUPABASE CONFIG */
+const SUPABASE_URL = "https://xjmmgvbzfsgjltzggysv.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
+
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* HANDLE ADMIN VIDEO UPLOAD */
+const uploadForm = document.getElementById("uploadVideoForm");
+
+if (uploadForm){
+  uploadForm.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+
+    const titleEl = document.getElementById("videoTitle");
+    const fileEl  = document.getElementById("videoFile");
+    const status  = document.getElementById("uploadStatus");
+
+    const title = titleEl.value.trim();
+    const file  = fileEl.files[0];
+
+    if (!title) return toast("Digite um título.");
+    if (!file) return toast("Selecione um arquivo MP4.");
+
+    status.innerHTML = "Enviando arquivo...";
+
+    const filePath = Date.now() + "-" + file.name.replace(/\s+/g,'_');
+
+    // Upload pro Supabase Storage
+    const { data, error } = await supabase
+      .storage
+      .from("aulas")   // <-- Seu bucket deve ser "aulas"
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false
+      });
+
+    if (error){
+      console.error(error);
+      status.innerHTML = "<span style='color:#f44'>Erro ao enviar.</span>";
+      return;
+    }
+
+    status.innerHTML = "Registrando no Firestore...";
+
+    // Criar registro no Firestore
+    await db.collection("videos").add({
+      title,
+      filePath,   // -> o dashboard usa isso
+      createdAt: Date.now()
     });
-  }
+
+    status.innerHTML = "<span style='color:#0f0'>Vídeo enviado com sucesso ✔</span>";
+
+    uploadForm.reset();
+    loadAdminLists();
+  });
+}
+
 
   // Admin: authorize by email form
   const addUserForm = document.getElementById('addUserForm');
