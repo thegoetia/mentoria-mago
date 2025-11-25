@@ -11,8 +11,61 @@
 
   <script src="firebase.js"></script>
   <script src="auth.js" defer></script>
+
+  <style>
+      /* --- PLAYER SEGURO --- */
+
+      .video-card {
+          width: 100%;
+      }
+
+      .video-box {
+          position: relative;
+          width: 100%;
+          padding-top: 56.25%;
+          background: #000;
+          border-radius: 12px;
+          overflow: hidden;
+      }
+
+      .video-box iframe {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          border: none;
+          pointer-events: none; /* bloqueado até o clique */
+      }
+
+      .player-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.55);
+          backdrop-filter: blur(6px);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          cursor: pointer;
+          z-index: 10;
+          transition: 0.2s;
+      }
+
+      .player-overlay img {
+          width: 100px;
+          opacity: 0.9;
+      }
+
+      /* Bloqueios leves */
+      body {
+          user-select: none;
+          -webkit-user-select: none;
+      }
+  </style>
+
 </head>
-<body>
+
+<body oncontextmenu="return false">
+
   <header class="site-header">
     <div class="container header-inner">
       <h2>Mentoria</h2>
@@ -34,5 +87,62 @@
       <div id="videosList" class="videos-grid"></div>
     </section>
   </main>
+
+  <script>
+      /* CARREGAR VÍDEOS EM ORDEM CRESCENTE */
+      firebase.auth().onAuthStateChanged(async (user) => {
+          if (!user) return window.location.href = "index.html";
+
+          const list = document.getElementById("videosList");
+          list.innerHTML = "";
+
+          const snap = await firebase.firestore()
+              .collection("videos")
+              .orderBy("timestamp", "asc")
+              .get();
+
+          snap.forEach(doc => {
+              const v = doc.data();
+
+              const card = document.createElement("div");
+              card.className = "video-card";
+
+              card.innerHTML = `
+                  <div class="video-box">
+                      <div class="player-overlay">
+                          <img src="https://img.icons8.com/ios-filled/100/ffffff/play--v1.png">
+                      </div>
+
+                      <iframe src="${v.embedUrl}" allowfullscreen></iframe>
+                  </div>
+
+                  <h3 style="margin-top: 10px;">${v.title}</h3>
+              `;
+
+              const overlay = card.querySelector(".player-overlay");
+              const iframe = card.querySelector("iframe");
+
+              overlay.addEventListener("click", () => {
+                  overlay.style.display = "none";
+                  iframe.style.pointerEvents = "auto"; // agora permite clicar
+              });
+
+              list.appendChild(card);
+          });
+
+          document.getElementById("dashboard-content").style.display = "block";
+      });
+
+      /* BLOQUEAR CTRL+C / CTRL+U / CTRL+S / CTRL+I */
+      document.addEventListener("keydown", function(e) {
+          if (e.ctrlKey && ["u","U","c","C","s","S","i","I"].includes(e.key)) {
+              e.preventDefault();
+          }
+      });
+
+      /* BLOQUEAR ARRASTAR */
+      document.addEventListener("dragstart", e => e.preventDefault());
+  </script>
+
 </body>
 </html>
