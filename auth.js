@@ -1,5 +1,5 @@
 // =======================
-//  AUTH.JS (CORRIGIDO)
+// AUTH.JS (Firebase intacto + Supabase corrigido)
 // =======================
 
 // ---------- Helpers ----------
@@ -45,14 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
   Theme.load();
 
   // ==========================
-  // SUPABASE CLIENT UNIFICADO
+  // SUPABASE CLIENT
   // ==========================
-  const supabaseClient = window.supabaseClient;
-  if (!supabaseClient){
-    console.warn("⚠ SupabaseClient não disponível");
-  }
+  const SUPABASE_URL = "https://xjmmgvbzfsgjltzggysv.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // LOGIN
+  // ------------------ LOGIN ------------------
   const loginForm = document.getElementById('loginForm');
   if (loginForm){
     loginForm.addEventListener('submit', async (e) => {
@@ -69,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // REGISTER
+  // ------------------ REGISTER ------------------
   const registerForm = document.getElementById('registerForm');
   if (registerForm){
     registerForm.addEventListener('submit', async (e) => {
@@ -77,9 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = document.getElementById('regName') ? document.getElementById('regName').value.trim() : '';
       const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value;
-
       if(!email || !password) return toast('Preencha email e senha');
-
       try {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         const uid = cred.user.uid;
@@ -104,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // LOGOUT
+  // ------------------ LOGOUT ------------------
   document.querySelectorAll('[data-logout]').forEach(b => {
     b.addEventListener('click', async () => {
       await auth.signOut();
@@ -112,9 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ==========================================
-  // ADMIN — UPLOAD DE VÍDEO (SUPABASE STORAGE)
-  // ==========================================
+  // ------------------ ADMIN UPLOAD ------------------
   const uploadForm = document.getElementById("uploadVideoForm");
 
   if (uploadForm){
@@ -135,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // UPLOAD Supabase
       const { data, error } = await supabaseClient
         .storage
-        .from("videos") // bucket unificado
+        .from("aulas") // bucket correto
         .upload(fileName, file, { upsert: false });
 
       if (error){
@@ -146,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // URL pública
       const publicUrl = supabaseClient
         .storage
-        .from("videos")
+        .from("aulas")
         .getPublicUrl(fileName).data.publicUrl;
 
       // Registrar no Firestore
@@ -164,10 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-
-  // =====================
-  // PROTEÇÃO DAS PÁGINAS
-  // =====================
+  // ------------------ PROTEÇÃO DAS PÁGINAS ------------------
   auth.onAuthStateChanged(async (user) => {
 
     // ---------- DASHBOARD ----------
@@ -209,8 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 }); // DOMContentLoaded END
-
-
 
 // ==============================
 // STUDENT — LISTAR E MOSTRAR MP4
@@ -260,8 +250,6 @@ window.playVideo = function(overlay){
 
   video.play().catch(()=>{});
 };
-
-
 
 // ==============================
 // ADMIN — LISTAS (Usuários e Vídeos)
@@ -357,8 +345,6 @@ window.removeVideo = async function(docId){
   loadAdminLists();
 };
 
-
-
 // ==============================
 // PROTEÇÃO DO DASHBOARD
 // ==============================
@@ -375,7 +361,6 @@ function attachDashboardProtection(){
     }
   });
 }
-
 
 // ==============================
 // TOAST
