@@ -254,13 +254,18 @@ window.playVideo = function(overlay){
   const parent = overlay.parentElement;
   const iframe = parent.querySelector('.video-frame');
   const playBtn = parent.querySelector('.play-button');
-  // allow interaction AFTER clicking play
+
+  // permite interação no iframe APÓS clique
   iframe.style.pointerEvents = 'auto';
+
+  // remove overlay e botão
   overlay.style.display = 'none';
   if (playBtn) playBtn.style.display = 'none';
-  // Optionally auto-play by adding &autoplay=1
-  if (iframe.src.indexOf('autoplay=1') === -1){
-    iframe.src = iframe.src + (iframe.src.indexOf('?') === -1 ? '?' : '&') + 'autoplay=1';
+
+  // autoplay seguro
+  if (!iframe.dataset.started){
+    iframe.dataset.started = "1";
+    iframe.src = iframe.src + "&autoplay=1";
   }
 };
 
