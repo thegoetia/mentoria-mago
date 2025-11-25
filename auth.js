@@ -1,5 +1,5 @@
 // =======================
-//  AUTH.JS (CORRIGIDO)
+// AUTH.JS (Firebase intacto + Supabase corrigido)
 // =======================
 
 // ---------- Helpers ----------
@@ -45,14 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
   Theme.load();
 
   // ==========================
-  // SUPABASE CLIENT UNIFICADO
+  // SUPABASE CLIENT (corrigido)
   // ==========================
-  const supabaseClient = window.supabaseClient;
-  if (!supabaseClient){
-    console.warn("⚠ SupabaseClient não disponível");
-  }
+  const SUPABASE_URL = "https://xjmmgvbzfsgjltzggysv.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // LOGIN
+  // ------------------ LOGIN ------------------
   const loginForm = document.getElementById('loginForm');
   if (loginForm){
     loginForm.addEventListener('submit', async (e) => {
@@ -69,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // REGISTER
+  // ------------------ REGISTER ------------------
   const registerForm = document.getElementById('registerForm');
   if (registerForm){
     registerForm.addEventListener('submit', async (e) => {
@@ -77,9 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = document.getElementById('regName') ? document.getElementById('regName').value.trim() : '';
       const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value;
-
       if(!email || !password) return toast('Preencha email e senha');
-
       try {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         const uid = cred.user.uid;
@@ -104,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // LOGOUT
+  // ------------------ LOGOUT ------------------
   document.querySelectorAll('[data-logout]').forEach(b => {
     b.addEventListener('click', async () => {
       await auth.signOut();
@@ -112,11 +109,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ==========================================
-  // ADMIN — UPLOAD DE VÍDEO (SUPABASE STORAGE)
-  // ==========================================
+  // ------------------ ADMIN UPLOAD ------------------
   const uploadForm = document.getElementById("uploadVideoForm");
-
   if (uploadForm){
     uploadForm.addEventListener("submit", async (e)=>{
       e.preventDefault();
@@ -132,11 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
 
-      // UPLOAD Supabase
+      // UPLOAD Supabase (corrigido)
       const { data, error } = await supabaseClient
         .storage
-        .from("videos") // bucket unificado
-        .upload(fileName, file, { upsert: false });
+        .from("aulas")
+        .upload(fileName, file);
 
       if (error){
         status.textContent = "Erro ao enviar: " + error.message;
@@ -144,10 +138,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // URL pública
-      const publicUrl = supabaseClient
+      const { data: publicData } = supabaseClient
         .storage
-        .from("videos")
-        .getPublicUrl(fileName).data.publicUrl;
+        .from("aulas")
+        .getPublicUrl(fileName);
+      const publicUrl = publicData.publicUrl;
 
       // Registrar no Firestore
       await db.collection("videos").add({
@@ -164,29 +159,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-
-  // =====================
-  // PROTEÇÃO DAS PÁGINAS
-  // =====================
+  // ------------------ PROTEÇÃO DAS PÁGINAS ------------------
   auth.onAuthStateChanged(async (user) => {
-
     // ---------- DASHBOARD ----------
     const dashArea = document.getElementById('dashboard-content');
     if (dashArea){
       if(!user) return window.location.href = 'index.html';
-
       const udoc = await db.collection('users').doc(user.uid).get();
       const udata = udoc.data();
-
       if (udata.authorized !== true && udata.role !== 'admin'){
         toast("Conta não autorizada.");
         await auth.signOut();
         return window.location.href = 'index.html';
       }
-
       document.getElementById("userName").textContent = udata.name || udata.email;
       dashArea.style.display = "block";
-
       loadStudentVideos();
       attachDashboardProtection();
     }
@@ -195,22 +182,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminArea = document.getElementById('admin-area');
     if (adminArea){
       if(!user) return window.location.href = 'index.html';
-
       const udoc = await db.collection('users').doc(user.uid).get();
       if (!udoc.exists || udoc.data().role !== 'admin'){
         toast("Acesso negado.");
         return window.location.href = 'dashboard.html';
       }
-
       adminArea.style.display = 'block';
       loadAdminLists();
     }
-
   });
 
 }); // DOMContentLoaded END
-
-
 
 // ==============================
 // STUDENT — LISTAR E MOSTRAR MP4
@@ -218,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadStudentVideos(){
   const listEl = document.getElementById("videosList");
   if (!listEl) return;
-
   listEl.innerHTML = "<p>Carregando...</p>";
 
   const snap = await db.collection("videos").orderBy("createdAt","asc").get();
@@ -228,52 +209,36 @@ async function loadStudentVideos(){
   }
 
   listEl.innerHTML = "";
-
   snap.forEach(docSnap => {
     const d = docSnap.data();
-
     const wrapper = document.createElement("div");
     wrapper.className = "video-card";
-
     wrapper.innerHTML = `
       <div class="iframe-protect">
         <div class="video-overlay" onclick="playVideo(this)"></div>
-        <video
-          preload="none"
-          src="${escapeHtml(d.url)}"
-          controls
-          style="width:100%; height:100%; pointer-events:none; border-radius:12px;"
-        ></video>
+        <video preload="none" src="${escapeHtml(d.url)}" controls style="width:100%; height:100%; pointer-events:none; border-radius:12px;"></video>
       </div>
       <h3 class="video-title">${escapeHtml(d.title)}</h3>
     `;
-
     listEl.appendChild(wrapper);
   });
 }
 
 window.playVideo = function(overlay){
   const video = overlay.parentElement.querySelector("video");
-
   overlay.style.display = "none";
   video.style.pointerEvents = "auto";
-
   video.play().catch(()=>{});
 };
-
-
 
 // ==============================
 // ADMIN — LISTAS (Usuários e Vídeos)
 // ==============================
 async function loadAdminLists(){
-
-  // ----- USERS -----
   const usersEl = document.getElementById('usersList');
   if (usersEl){
     usersEl.innerHTML = "Carregando...";
     const snap = await db.collection('users').orderBy('createdAt','desc').get();
-
     if (snap.empty){
       usersEl.innerHTML = "<p>Sem usuários</p>";
     } else {
@@ -281,10 +246,8 @@ async function loadAdminLists(){
       snap.forEach(docSnap => {
         const d = docSnap.data();
         const id = docSnap.id;
-
         const row = document.createElement("div");
         row.className = "admin-row";
-
         row.innerHTML = `
           <div>
             <strong>${escapeHtml(d.name || d.email)}</strong><br>
@@ -299,18 +262,15 @@ async function loadAdminLists(){
             ${d.role === "admin" ? "<span class='badge'>ADMIN</span>" : ""}
           </div>
         `;
-
         usersEl.appendChild(row);
       });
     }
   }
 
-  // ----- VIDEOS -----
   const videosEl = document.getElementById('adminVideosList');
   if (videosEl){
     videosEl.innerHTML = "Carregando...";
     const snap = await db.collection('videos').orderBy('createdAt','asc').get();
-
     if (snap.empty){
       videosEl.innerHTML = "<p>Sem vídeos</p>";
     } else {
@@ -318,10 +278,8 @@ async function loadAdminLists(){
       snap.forEach(docSnap => {
         const d = docSnap.data();
         const id = docSnap.id;
-
         const row = document.createElement("div");
         row.className = "admin-row";
-
         row.innerHTML = `
           <div>
             <strong>${escapeHtml(d.title)}</strong><br>
@@ -331,12 +289,10 @@ async function loadAdminLists(){
             <button class="btn danger" onclick="removeVideo('${id}')">Remover</button>
           </div>
         `;
-
         videosEl.appendChild(row);
       });
     }
   }
-
 }
 
 window.authorizeUser = async function(docId){
@@ -357,14 +313,11 @@ window.removeVideo = async function(docId){
   loadAdminLists();
 };
 
-
-
 // ==============================
 // PROTEÇÃO DO DASHBOARD
 // ==============================
 function attachDashboardProtection(){
   document.addEventListener('contextmenu', e => e.preventDefault());
-
   document.addEventListener('keydown', function(e){
     if (e.key === 'F12') e.preventDefault();
     if (e.ctrlKey){
@@ -376,7 +329,6 @@ function attachDashboardProtection(){
   });
 }
 
-
 // ==============================
 // TOAST
 // ==============================
@@ -385,7 +337,6 @@ function toast(msg){
   t.className = 'toast';
   t.textContent = msg;
   document.body.appendChild(t);
-
   setTimeout(()=> t.classList.add('visible'), 20);
   setTimeout(()=>{
     t.classList.remove('visible');
