@@ -1,5 +1,5 @@
 // =======================
-//  AUTH.JS (CORRIGIDO)
+//  AUTH.JS (ATUALIZADO)
 // =======================
 
 // ---------- Helpers ----------
@@ -47,7 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================
   // SUPABASE CLIENT UNIFICADO
   // ==========================
-  const supabaseClient = window.supabaseClient;
+  const SUPABASE_URL = "https://xjmmgvbzfsgjltzggysv.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  window.supabaseClient = supabaseClient;
+
   if (!supabaseClient){
     console.warn("⚠ SupabaseClient não disponível");
   }
@@ -164,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-
   // =====================
   // PROTEÇÃO DAS PÁGINAS
   // =====================
@@ -209,8 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 }); // DOMContentLoaded END
-
-
 
 // ==============================
 // STUDENT — LISTAR E MOSTRAR MP4
@@ -260,8 +261,6 @@ window.playVideo = function(overlay){
 
   video.play().catch(()=>{});
 };
-
-
 
 // ==============================
 // ADMIN — LISTAS (Usuários e Vídeos)
@@ -357,8 +356,6 @@ window.removeVideo = async function(docId){
   loadAdminLists();
 };
 
-
-
 // ==============================
 // PROTEÇÃO DO DASHBOARD
 // ==============================
@@ -375,7 +372,6 @@ function attachDashboardProtection(){
     }
   });
 }
-
 
 // ==============================
 // TOAST
