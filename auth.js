@@ -2,6 +2,15 @@
 // AUTH.JS (Firebase intacto + Supabase corrigido)
 // =======================
 
+// ==========================
+// SUPABASE CLIENT GLOBAL
+// ==========================
+const SUPABASE_URL = "https://xjmmgvbzfsgjltzggysv.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+
 // ---------- Helpers ----------
 function escapeHtml(s){
   if(!s) return '';
@@ -39,22 +48,12 @@ function updateThemeButtons(){
   });
 }
 
+
 // ---------- Page Wiring ----------
 document.addEventListener('DOMContentLoaded', () => {
 
   Theme.load();
 
-  // ==========================
-// SUPABASE CLIENT UNIFICADO (seguro, não quebra Firebase)
-// ==========================
-let supabaseClient = null;
-if (typeof supabase !== "undefined") {
-    const SUPABASE_URL = "https://xjmmgvbzfsgjltzggysv.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
-    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-} else {
-    console.warn("⚠ Supabase não carregado, upload de vídeo não funcionará.");
-}
 
   // ------------------ LOGIN ------------------
   const loginForm = document.getElementById('loginForm');
