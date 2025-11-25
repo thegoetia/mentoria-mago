@@ -70,23 +70,32 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = document.getElementById('regPassword').value;
       if(!email || !password) return toast('Preencha email e senha');
       try {
+        // Create user in Firebase Auth
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         const uid = cred.user.uid;
-        // create user document with authorized:false
-await db.collection('users').doc(uid).set({
-  uid,
-  email,
-  emailLower: email.toLowerCase(),
-  name: name || null,
-  authorized: false,
-  role: 'user',
-  createdAt: firebase.firestore.FieldValue.serverTimestamp()
-}, { merge: true });
+
+        // Create user document in Firestore (user can create own doc)
+        // includes emailLower to make buscas por email mais confiáveis
+        await db.collection('users').doc(uid).set({
+          uid,
+          email,
+          emailLower: email.toLowerCase(),
+          name: name || null,
+          authorized: false,
+          role: 'user',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
         toast('Conta criada! Aguarde autorização do admin. Você será redirecionado ao login.');
         await auth.signOut();
         setTimeout(()=> window.location.href = 'index.html', 1200);
       } catch(err){
-        toast(err.message);
+        // se for erro de permissão, instruí o admin sobre regras
+        if (err.code === 'permission-denied' || err.message && err.message.toLowerCase().includes('permission')) {
+          toast('Erro de permissão ao criar o perfil. Verifique as regras do Firestore (veja instruções).');
+        } else {
+          toast(err.message);
+        }
       }
     });
   }
@@ -130,22 +139,28 @@ await db.collection('users').doc(uid).set({
       e.preventDefault();
       const email = document.getElementById('authEmail').value.trim();
       if(!email) return toast('Digite um email');
-      try {
-        // find user by email
-        let snap = await db.collection('users')
-  .where('emailLower', '==', email.toLowerCase())
-  .get();
 
-// fallback caso o índice não exista ou o campo não exista no usuário mais antigo
-if (snap.empty){
-  snap = await db.collection('users')
-    .where('email', '==', email)
-    .get();
-}
-        if (snap.empty) return toast('Usuário não encontrado (peça para ele se registrar primeiro).');
-        snap.forEach(async docSnap => {
-          await db.collection('users').doc(docSnap.id).update({ authorized: true });
+      try {
+        // 1) primeiro tenta buscar pelo campo emailLower (mais confiável)
+        let snap = await db.collection('users').where('emailLower','==', email.toLowerCase()).get();
+
+        // 2) fallback para campo email (usuários antigos)
+        if (snap.empty){
+          snap = await db.collection('users').where('email','==', email).get();
+        }
+
+        if (snap.empty) {
+          return toast('Usuário não encontrado (peça para o aluno se registrar primeiro).');
+        }
+
+        // autoriza todos os docs encontrados (normalmente é só 1)
+        const batch = db.batch ? db.batch() : null; // legacy safety
+        const updates = [];
+        snap.forEach(docSnap => {
+          updates.push(db.collection('users').doc(docSnap.id).update({ authorized: true }));
         });
+
+        await Promise.all(updates);
         toast('Usuário(s) autorizado(s)');
         addUserForm.reset();
         loadAdminLists();
