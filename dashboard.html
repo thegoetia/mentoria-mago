@@ -17,6 +17,7 @@
     <div class="container header-inner">
       <h2>Mentoria</h2>
       <div class="header-actions">
+        <span id="userName" style="margin-right:12px"></span>
         <button id="themeToggle" class="btn small" onclick="Theme.toggle()">Light</button>
         <button id="logoutBtn" class="btn ghost">Sair</button>
       </div>
@@ -24,15 +25,13 @@
   </header>
 
   <main class="container">
-    <section id="protected-content" class="content-area">
+    <section id="dashboard-content" class="content-area">
       <div class="welcome card">
-        <h1>Bem-vindo à Mentoria</h1>
-        <p>Aqui estão suas aulas liberadas:</p>
+        <h1>Bem-vindo</h1>
+        <p>Abaixo estão as mentorias disponíveis para você:</p>
       </div>
 
-      <div id="videosList" class="videos-grid">
-        <!-- videos carregados por auth.js -->
-      </div>
+      <div id="videosList" class="videos-grid"></div>
     </section>
   </main>
 </body>
