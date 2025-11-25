@@ -13,57 +13,20 @@
   <script src="auth.js" defer></script>
 
   <style>
-      /* --- PLAYER SEGURO --- */
-
-      .video-card {
-          width: 100%;
-      }
-
-      .video-box {
-          position: relative;
-          width: 100%;
-          padding-top: 56.25%;
-          background: #000;
-          border-radius: 12px;
-          overflow: hidden;
-      }
-
-      .video-box iframe {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          border: none;
-          pointer-events: none; /* bloqueado até o clique */
-      }
-
-      .player-overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(0,0,0,0.55);
-          backdrop-filter: blur(6px);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          cursor: pointer;
-          z-index: 10;
-          transition: 0.2s;
-      }
-
-      .player-overlay img {
-          width: 100px;
-          opacity: 0.9;
-      }
-
-      /* Bloqueios leves */
-      body {
-          user-select: none;
-          -webkit-user-select: none;
-      }
+    /* player responsive 16:9 + overlay */
+    .video-card { width:100%; margin-bottom:22px; }
+    .video-box { position:relative; width:100%; padding-top:56.25%; background:#000; border-radius:12px; overflow:hidden; }
+    .video-box iframe { position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:auto; } /* pointer-events not required now */
+    .player-overlay {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); cursor:pointer; z-index:10;
+    }
+    .player-overlay img { width:84px; height:84px; }
+    .video-title{ margin-top:10px; font-weight:600; text-align:center; }
+    /* small responsive */
+    @media(max-width:600px){ .player-overlay img{ width:64px; height:64px; } }
   </style>
-
 </head>
-
 <body oncontextmenu="return false">
 
   <header class="site-header">
@@ -88,61 +51,105 @@
     </section>
   </main>
 
-  <script>
-      /* CARREGAR VÍDEOS EM ORDEM CRESCENTE */
-      firebase.auth().onAuthStateChanged(async (user) => {
-          if (!user) return window.location.href = "index.html";
+<script>
+/*
+  Script: carrega vídeos e injeta iframe apenas no clique (anti-cópia)
+  Observações:
+  - O campo da collection usado para ordenação é `createdAt`. Se for outro (ex: timestamp),
+    troque orderBy('createdAt','asc') para o campo correto.
+  - Cada documento de vídeo deve ter: { title, ytId, createdAt }.
+  - O embed URL final usado: https://www.youtube.com/embed/ID?rel=0&modestbranding=1&controls=1
+*/
 
-          const list = document.getElementById("videosList");
-          list.innerHTML = "";
+firebase.auth().onAuthStateChanged(async (user) => {
+  if (!user) return window.location.href = 'index.html';
 
-          const snap = await firebase.firestore()
-              .collection("videos")
-              .orderBy("timestamp", "asc")
-              .get();
+  // opcional: você já faz checagem de autorização em auth.js; aqui só carregamos vídeos
+  const list = document.getElementById('videosList');
+  list.innerHTML = '';
 
-          snap.forEach(doc => {
-              const v = doc.data();
+  // tenta orderBy createdAt (crescente). Ajuste se usar outro campo.
+  let snap;
+  try {
+    snap = await firebase.firestore().collection('videos').orderBy('createdAt','asc').get();
+  } catch(e) {
+    // fallback: sem order
+    snap = await firebase.firestore().collection('videos').get();
+  }
 
-              const card = document.createElement("div");
-              card.className = "video-card";
+  if (snap.empty) {
+    list.innerHTML = '<p>Nenhum vídeo disponível.</p>';
+    document.getElementById('dashboard-content').style.display = 'block';
+    return;
+  }
 
-              card.innerHTML = `
-                  <div class="video-box">
-                      <div class="player-overlay">
-                          <img src="https://img.icons8.com/ios-filled/100/ffffff/play--v1.png">
-                      </div>
+  snap.forEach(doc => {
+    const d = doc.data();
+    const ytId = d.ytId || (d.url ? (new URL(d.url)).searchParams.get('v') : null);
+    // if can't resolve, skip
+    if (!ytId) return;
 
-                      <iframe src="${v.embedUrl}" allowfullscreen></iframe>
-                  </div>
+    // build card
+    const card = document.createElement('div');
+    card.className = 'video-card';
 
-                  <h3 style="margin-top: 10px;">${v.title}</h3>
-              `;
+    // data-src holds the embed url (not loaded yet)
+    const embedBase = `https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1&controls=1`;
 
-              const overlay = card.querySelector(".player-overlay");
-              const iframe = card.querySelector("iframe");
+    card.innerHTML = `
+      <div class="video-box">
+        <div class="player-overlay" title="Clique para reproduzir">
+          <img src="https://img.icons8.com/ios-filled/100/ffffff/play--v1.png" alt="play">
+        </div>
 
-              overlay.addEventListener("click", () => {
-                  overlay.style.display = "none";
-                  iframe.style.pointerEvents = "auto"; // agora permite clicar
-              });
+        <!-- iframe sem src inicialmente (data-src) -->
+        <iframe data-src="${embedBase}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      </div>
+      <div class="video-title">${escapeHtml(d.title || 'Mentoria')}</div>
+    `;
 
-              list.appendChild(card);
-          });
+    // attach click handler to overlay: set iframe.src and remove overlay
+    const overlay = card.querySelector('.player-overlay');
+    const iframe = card.querySelector('iframe');
 
-          document.getElementById("dashboard-content").style.display = "block";
-      });
+    overlay.addEventListener('click', () => {
+      // inject src with autoplay (user-generated click allows autoplay)
+      const base = iframe.getAttribute('data-src') || '';
+      // append autoplay safely (if already has ? or not)
+      const sep = base.indexOf('?') === -1 ? '?' : '&';
+      iframe.src = base + sep + 'autoplay=1';
+      // hide overlay
+      overlay.style.display = 'none';
+      // focus iframe (optional)
+      try { iframe.focus(); } catch(_) {}
+    });
 
-      /* BLOQUEAR CTRL+C / CTRL+U / CTRL+S / CTRL+I */
-      document.addEventListener("keydown", function(e) {
-          if (e.ctrlKey && ["u","U","c","C","s","S","i","I"].includes(e.key)) {
-              e.preventDefault();
-          }
-      });
+    list.appendChild(card);
+  });
 
-      /* BLOQUEAR ARRASTAR */
-      document.addEventListener("dragstart", e => e.preventDefault());
-  </script>
+  // show content after injection
+  document.getElementById('dashboard-content').style.display = 'block';
+});
+
+// small helpers & protections
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/[&<>"'\/]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;'}[c];
+  });
+}
+
+// block common shortcuts (light)
+document.addEventListener('keydown', function(e){
+  if (e.ctrlKey){
+    const blocked = ['u','U','c','C','s','S','i','I'];
+    if (blocked.includes(e.key)) e.preventDefault();
+  }
+});
+
+// block right click globally (already set on body too)
+document.addEventListener('contextmenu', e => e.preventDefault());
+</script>
 
 </body>
 </html>
