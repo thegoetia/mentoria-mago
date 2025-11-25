@@ -1,1 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin • Mentoria</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
+  <script src="firebase.js"></script>
+  <script src="auth.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h2>Admin • Mentoria</h2>
+      <div class="header-actions">
+        <button id="themeToggle" class="btn small" onclick="Theme.toggle()">Light</button>
+        <button id="logoutBtn" class="btn ghost">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="admin-area" class="admin-grid">
+      <div class="card">
+        <h3>Autorizar aluno</h3>
+        <form id="addEmailForm" class="form-inline">
+          <input id="authEmail" type="email" placeholder="Email do aluno" required />
+          <button class="btn" type="submit">Autorizar</button>
+        </form>
+
+        <div id="authorizedEmailsList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h3>Gerenciar vídeos</h3>
+        <form id="addVideoForm" class="form">
+          <input id="videoTitle" placeholder="Título (opcional)" />
+          <input id="videoUrl" placeholder="Link do YouTube (https://...)" required />
+          <button class="btn" type="submit">Adicionar vídeo</button>
+        </form>
+
+        <div id="adminVideosList" class="list"></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
