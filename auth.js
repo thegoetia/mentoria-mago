@@ -73,14 +73,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         const uid = cred.user.uid;
         // create user document with authorized:false
-        await db.collection('users').doc(uid).set({
-          uid,
-          email,
-          name: name || null,
-          authorized: false,
-          role: 'user',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+await db.collection('users').doc(uid).set({
+  uid,
+  email,
+  emailLower: email.toLowerCase(),
+  name: name || null,
+  authorized: false,
+  role: 'user',
+  createdAt: firebase.firestore.FieldValue.serverTimestamp()
+}, { merge: true });
         toast('Conta criada! Aguarde autorização do admin. Você será redirecionado ao login.');
         await auth.signOut();
         setTimeout(()=> window.location.href = 'index.html', 1200);
