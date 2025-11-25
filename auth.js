@@ -348,10 +348,15 @@ async function loadAdminLists(){
         const id = docSnap.id;
         const row = document.createElement('div');
         row.className = 'admin-row';
-        row.innerHTML = `
-          <div><strong>${escapeHtml(d.title || '')}</strong><br><small>${escapeHtml(d.ytId)}</small></div>
-          <div><button class="btn danger" onclick="removeVideo('${id}')">Remover</button></div>
-        `;
+row.innerHTML = `
+  <div>
+    <strong>${escapeHtml(d.title || '')}</strong><br>
+    <small>${escapeHtml(d.filePath || "sem arquivo")}</small>
+  </div>
+  <div>
+    <button class="btn danger" onclick="removeVideo('${id}')">Remover</button>
+  </div>
+`;
         videosEl.appendChild(row);
       });
     }
