@@ -99,3 +99,40 @@ body{
   .admin-grid{grid-template-columns:1fr}
   .form-card{margin:24px}
 }
+
+/* --- Video Protection & Player --- */
+
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto 40px;
+}
+
+.video-frame {
+  width: 100%;
+  height: 500px;
+  border: none;
+  pointer-events: none; /* bloqueia interação antes do play */
+}
+
+.video-overlay {
+  position: absolute;
+  inset: 0;
+  background: black;
+  opacity: 0.75;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.play-button {
+  position: absolute;
+  z-index: 6;
+  color: white;
+  font-size: 60px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  user-select: none;
+}
