@@ -90,7 +90,7 @@
 
         const { data, error } = await supabaseClient
           .storage
-          .from("videos")
+          .from("aulas")
           .upload(fileName, file, { upsert: false });
 
         if (error) {
@@ -100,7 +100,7 @@
 
         const { publicURL } = supabaseClient
           .storage
-          .from("videos")
+          .from("aulas")
           .getPublicUrl(fileName).data;
 
         // Salvar no Firestore
