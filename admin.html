@@ -14,6 +14,15 @@
 
   <script src="firebase.js"></script>
   <script src="auth.js" defer></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    window.supabaseClient = supabase.createClient(
+      "https://xjmmgvbzfsgjltzggysv.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR...SYG4"
+    );
+  </script>
 </head>
 
 <body>
@@ -29,32 +38,84 @@
 
   <main class="container">
     <section id="admin-area" class="admin-grid" style="display:none">
-      
+
       <!-- Autorizar aluno -->
       <div class="card">
         <h3>Autorizar aluno</h3>
         <form id="addUserForm" class="form-inline" autocomplete="off">
-          <input id="authEmail" type="email" placeholder="Email do aluno" required autocomplete="off" />
+          <input id="authEmail" type="email" placeholder="Email do aluno" required />
           <button class="btn" type="submit">Autorizar</button>
         </form>
-
         <div id="usersList" class="list"></div>
+      </div>
+
+      <!-- Upload de vídeo pelo Supabase -->
+      <div class="card">
+        <h3>Enviar vídeo (MP4)</h3>
+        <form id="uploadVideoForm" class="form" autocomplete="off">
+          <input id="uploadTitle" placeholder="Título do vídeo" />
+          <input id="uploadFile" type="file" accept="video/mp4" required />
+          <button class="btn" type="submit">Enviar</button>
+        </form>
+        <div id="uploadStatus" class="muted"></div>
       </div>
 
       <!-- Gerenciar vídeos -->
       <div class="card">
-        <h3>Gerenciar vídeos</h3>
-        <form id="addVideoForm" class="form" autocomplete="off">
-          <input id="videoTitle" placeholder="Título (opcional)" autocomplete="off" />
-          <input id="videoUrl" placeholder="Link do YouTube (qualquer formato)" required autocomplete="off" />
-          <button class="btn" type="submit">Adicionar vídeo</button>
-        </form>
-
+        <h3>Vídeos hospedados</h3>
         <div id="adminVideosList" class="list"></div>
       </div>
 
     </section>
   </main>
 
+  <script>
+    // Upload handler
+    document.addEventListener("DOMContentLoaded", () => {
+      const form = document.getElementById("uploadVideoForm");
+      if (!form) return;
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const title = document.getElementById("uploadTitle").value.trim() || "Vídeo";
+        const file = document.getElementById("uploadFile").files[0];
+        const status = document.getElementById("uploadStatus");
+
+        if (!file) return;
+
+        status.textContent = "Enviando vídeo...";
+
+        const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
+
+        const { data, error } = await supabaseClient
+          .storage
+          .from("videos")
+          .upload(fileName, file, { upsert: false });
+
+        if (error) {
+          status.textContent = "Erro ao enviar: " + error.message;
+          return;
+        }
+
+        const { publicURL } = supabaseClient
+          .storage
+          .from("videos")
+          .getPublicUrl(fileName).data;
+
+        // Salvar no Firestore
+        await db.collection("videos").add({
+          title,
+          type: "mp4",
+          url: publicURL,
+          createdAt: Date.now()
+        });
+
+        status.textContent = "Vídeo enviado com sucesso!";
+        form.reset();
+        loadAdminLists();
+      });
+    });
+  </script>
 </body>
 </html>
