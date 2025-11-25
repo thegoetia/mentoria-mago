@@ -1,17 +1,17 @@
-// auth.js
-// Central auth + DB logic (Firebase v8 style)
+// =======================
+//  AUTH.JS (CORRIGIDO)
+// =======================
 
 // ---------- Helpers ----------
 function escapeHtml(s){
   if(!s) return '';
-  return s.replace(/[&<>"'\/]/g, function(c){
-    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;'}[c];
-  });
+  return s.replace(/[&<>"'\/]/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;'}[c])
+  );
 }
 
 function extractYouTubeID(url){
   if(!url) return null;
-  // handles many formats
   const re = /(?:youtube\.com\/(?:watch\?.*v=|embed\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
   const m = url.match(re);
   return m ? m[1] : null;
@@ -39,9 +39,18 @@ function updateThemeButtons(){
   });
 }
 
-// ---------- Page wiring ----------
+// ---------- Page Wiring ----------
 document.addEventListener('DOMContentLoaded', () => {
+
   Theme.load();
+
+  // ==========================
+  // SUPABASE CLIENT UNIFICADO
+  // ==========================
+  const supabaseClient = window.supabaseClient;
+  if (!supabaseClient){
+    console.warn("⚠ SupabaseClient não disponível");
+  }
 
   // LOGIN
   const loginForm = document.getElementById('loginForm');
@@ -68,14 +77,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = document.getElementById('regName') ? document.getElementById('regName').value.trim() : '';
       const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value;
+
       if(!email || !password) return toast('Preencha email e senha');
+
       try {
-        // Create user in Firebase Auth
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         const uid = cred.user.uid;
 
-        // Create user document in Firestore (user can create own doc)
-        // includes emailLower to make buscas por email mais confiáveis
         await db.collection('users').doc(uid).set({
           uid,
           email,
@@ -86,21 +94,17 @@ document.addEventListener('DOMContentLoaded', () => {
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        toast('Conta criada! Aguarde autorização do admin. Você será redirecionado ao login.');
+        toast('Conta criada! Aguarde autorização do admin.');
         await auth.signOut();
         setTimeout(()=> window.location.href = 'index.html', 1200);
+
       } catch(err){
-        // se for erro de permissão, instruí o admin sobre regras
-        if (err.code === 'permission-denied' || err.message && err.message.toLowerCase().includes('permission')) {
-          toast('Erro de permissão ao criar o perfil. Verifique as regras do Firestore (veja instruções).');
-        } else {
-          toast(err.message);
-        }
+        toast(err.message);
       }
     });
   }
 
-  // LOGOUT buttons
+  // LOGOUT
   document.querySelectorAll('[data-logout]').forEach(b => {
     b.addEventListener('click', async () => {
       await auth.signOut();
@@ -108,306 +112,283 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  /* SUPABASE CONFIG */
-const SUPABASE_URL = "https://xjmmgvbzfsgjltzggysv.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
+  // ==========================================
+  // ADMIN — UPLOAD DE VÍDEO (SUPABASE STORAGE)
+  // ==========================================
+  const uploadForm = document.getElementById("uploadVideoForm");
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  if (uploadForm){
+    uploadForm.addEventListener("submit", async (e)=>{
+      e.preventDefault();
 
-/* HANDLE ADMIN VIDEO UPLOAD */
-const uploadForm = document.getElementById("uploadVideoForm");
+      const title = document.getElementById("uploadTitle").value.trim();
+      const file = document.getElementById("uploadFile").files[0];
+      const status = document.getElementById("uploadStatus");
 
-if (uploadForm){
-  uploadForm.addEventListener("submit", async (e)=>{
-    e.preventDefault();
+      if (!title) return toast("Digite um título.");
+      if (!file) return toast("Selecione um arquivo MP4.");
 
-    const titleEl = document.getElementById("videoTitle");
-    const fileEl  = document.getElementById("videoFile");
-    const status  = document.getElementById("uploadStatus");
+      status.textContent = "Enviando vídeo...";
 
-    const title = titleEl.value.trim();
-    const file  = fileEl.files[0];
+      const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
 
-    if (!title) return toast("Digite um título.");
-    if (!file) return toast("Selecione um arquivo MP4.");
+      // UPLOAD Supabase
+      const { data, error } = await supabaseClient
+        .storage
+        .from("aulas") // bucket unificado
+        .upload(fileName, file, { upsert: false });
 
-    status.innerHTML = "Enviando arquivo...";
+      if (error){
+        status.textContent = "Erro ao enviar: " + error.message;
+        return;
+      }
 
-    const filePath = Date.now() + "-" + file.name.replace(/\s+/g,'_');
+      // URL pública
+      const publicUrl = supabaseClient
+        .storage
+        .from("videos")
+        .getPublicUrl(fileName).data.publicUrl;
 
-    // Upload pro Supabase Storage
-    const { data, error } = await supabase
-      .storage
-      .from("aulas")   // <-- Seu bucket deve ser "aulas"
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false
+      // Registrar no Firestore
+      await db.collection("videos").add({
+        title,
+        url: publicUrl,
+        filePath: fileName,
+        type: "mp4",
+        createdAt: Date.now()
       });
 
-    if (error){
-      console.error(error);
-      status.innerHTML = "<span style='color:#f44'>Erro ao enviar.</span>";
-      return;
-    }
-
-    status.innerHTML = "Registrando no Firestore...";
-
-    // Criar registro no Firestore
-    await db.collection("videos").add({
-      title,
-      filePath,   // -> o dashboard usa isso
-      createdAt: Date.now()
-    });
-
-    status.innerHTML = "<span style='color:#0f0'>Vídeo enviado com sucesso ✔</span>";
-
-    uploadForm.reset();
-    loadAdminLists();
-  });
-}
-
-
-  // Admin: authorize by email form
-  const addUserForm = document.getElementById('addUserForm');
-  if (addUserForm){
-    addUserForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('authEmail').value.trim();
-      if(!email) return toast('Digite um email');
-
-      try {
-        // 1) primeiro tenta buscar pelo campo emailLower (mais confiável)
-        let snap = await db.collection('users').where('emailLower','==', email.toLowerCase()).get();
-
-        // 2) fallback para campo email (usuários antigos)
-        if (snap.empty){
-          snap = await db.collection('users').where('email','==', email).get();
-        }
-
-        if (snap.empty) {
-          return toast('Usuário não encontrado (peça para o aluno se registrar primeiro).');
-        }
-
-        // autoriza todos os docs encontrados (normalmente é só 1)
-        const batch = db.batch ? db.batch() : null; // legacy safety
-        const updates = [];
-        snap.forEach(docSnap => {
-          updates.push(db.collection('users').doc(docSnap.id).update({ authorized: true }));
-        });
-
-        await Promise.all(updates);
-        toast('Usuário(s) autorizado(s)');
-        addUserForm.reset();
-        loadAdminLists();
-      } catch(err){
-        toast(err.message);
-      }
+      status.textContent = "Vídeo enviado com sucesso!";
+      uploadForm.reset();
+      loadAdminLists();
     });
   }
 
-  // If page needs protection (dashboard or admin), auth.onAuthStateChanged below will handle it
+
+  // =====================
+  // PROTEÇÃO DAS PÁGINAS
+  // =====================
   auth.onAuthStateChanged(async (user) => {
-    // DASHBOARD
+
+    // ---------- DASHBOARD ----------
     const dashArea = document.getElementById('dashboard-content');
     if (dashArea){
-      if(!user){
-        window.location.href = 'index.html';
-        return;
-      }
+      if(!user) return window.location.href = 'index.html';
+
       const udoc = await db.collection('users').doc(user.uid).get();
-      if(!udoc.exists){
-        toast('Perfil não encontrado. Contate o admin.');
-        await auth.signOut();
-        window.location.href = 'index.html';
-        return;
-      }
       const udata = udoc.data();
+
       if (udata.authorized !== true && udata.role !== 'admin'){
-        toast('Conta não autorizada. Aguarde o admin.');
+        toast("Conta não autorizada.");
         await auth.signOut();
-        window.location.href = 'index.html';
-        return;
+        return window.location.href = 'index.html';
       }
-      // allowed
-      document.getElementById('userName') && (document.getElementById('userName').textContent = udata.name || udata.email);
-      dashArea.style.display = 'block';
+
+      document.getElementById("userName").textContent = udata.name || udata.email;
+      dashArea.style.display = "block";
+
       loadStudentVideos();
       attachDashboardProtection();
     }
 
-    // ADMIN
+    // ---------- ADMIN ----------
     const adminArea = document.getElementById('admin-area');
     if (adminArea){
-      if(!user){
-        window.location.href = 'index.html';
-        return;
-      }
+      if(!user) return window.location.href = 'index.html';
+
       const udoc = await db.collection('users').doc(user.uid).get();
-      if(!udoc.exists || udoc.data().role !== 'admin'){
-        toast('Acesso negado: precisa ser admin');
-        window.location.href = 'dashboard.html';
-        return;
+      if (!udoc.exists || udoc.data().role !== 'admin'){
+        toast("Acesso negado.");
+        return window.location.href = 'dashboard.html';
       }
+
       adminArea.style.display = 'block';
       loadAdminLists();
     }
+
   });
 
-}); // DOMContentLoaded end
+}); // DOMContentLoaded END
 
-// ---------- Student: load videos in ascending order ----------
+
+
+// ==============================
+// STUDENT — LISTAR E MOSTRAR MP4
+// ==============================
 async function loadStudentVideos(){
-  const listEl = document.getElementById('videosList');
+  const listEl = document.getElementById("videosList");
   if (!listEl) return;
-  listEl.innerHTML = '<p>Carregando...</p>';
-  const snap = await db.collection('videos').orderBy('createdAt','asc').get();
+
+  listEl.innerHTML = "<p>Carregando...</p>";
+
+  const snap = await db.collection("videos").orderBy("createdAt","asc").get();
   if (snap.empty){
-    listEl.innerHTML = '<p>Nenhum vídeo disponível.</p>';
+    listEl.innerHTML = "<p>Nenhum vídeo disponível.</p>";
     return;
   }
-  listEl.innerHTML = '';
+
+  listEl.innerHTML = "";
+
   snap.forEach(docSnap => {
     const d = docSnap.data();
-    const wrapper = document.createElement('div');
-    wrapper.className = 'video-wrapper';
 
-    const embedSrc = `https://www.youtube.com/embed/${d.ytId}?rel=0&modestbranding=1`;
+    const wrapper = document.createElement("div");
+    wrapper.className = "video-card";
 
     wrapper.innerHTML = `
-      <div class="video-overlay" onclick="playVideo(this)"></div>
-      <iframe class="video-frame" src="${embedSrc}" allowfullscreen></iframe>
-      <div class="play-button">▶</div>
-      <h3 class="video-title">${escapeHtml(d.title || 'Mentoria')}</h3>
+      <div class="iframe-protect">
+        <div class="video-overlay" onclick="playVideo(this)"></div>
+        <video
+          preload="none"
+          src="${escapeHtml(d.url)}"
+          controls
+          style="width:100%; height:100%; pointer-events:none; border-radius:12px;"
+        ></video>
+      </div>
+      <h3 class="video-title">${escapeHtml(d.title)}</h3>
     `;
 
     listEl.appendChild(wrapper);
   });
 }
 
-// play handler (global)
 window.playVideo = function(overlay){
-  const wrapper = overlay.parentElement;
-  const iframe = wrapper.querySelector('.video-frame');
+  const video = overlay.parentElement.querySelector("video");
 
-  // liberar interação no iframe
-  iframe.style.pointerEvents = 'auto';
+  overlay.style.display = "none";
+  video.style.pointerEvents = "auto";
 
-  // remover overlay e play button
-  overlay.style.display = 'none';
-  const playBtn = wrapper.querySelector('.play-button');
-  if (playBtn) playBtn.style.display = 'none';
-
-  // ativar autoplay corretamente
-  if (!iframe.dataset.started) {
-    iframe.dataset.started = "1";
-    iframe.src = iframe.src + "&autoplay=1";
-  }
+  video.play().catch(()=>{});
 };
 
-// ---------- Admin: lists & actions ----------
+
+
+// ==============================
+// ADMIN — LISTAS (Usuários e Vídeos)
+// ==============================
 async function loadAdminLists(){
-  // users list
+
+  // ----- USERS -----
   const usersEl = document.getElementById('usersList');
   if (usersEl){
-    usersEl.innerHTML = 'Carregando...';
+    usersEl.innerHTML = "Carregando...";
     const snap = await db.collection('users').orderBy('createdAt','desc').get();
+
     if (snap.empty){
-      usersEl.innerHTML = '<p>Sem usuários</p>';
+      usersEl.innerHTML = "<p>Sem usuários</p>";
     } else {
-      usersEl.innerHTML = '';
+      usersEl.innerHTML = "";
       snap.forEach(docSnap => {
         const d = docSnap.data();
         const id = docSnap.id;
-        const row = document.createElement('div');
-        row.className = 'admin-row';
+
+        const row = document.createElement("div");
+        row.className = "admin-row";
+
         row.innerHTML = `
           <div>
             <strong>${escapeHtml(d.name || d.email)}</strong><br>
             <small>${escapeHtml(d.email)}</small>
           </div>
           <div>
-            ${d.authorized ? `<button class="btn secondary" onclick="revokeUser('${id}')">Revogar</button>` : `<button class="btn" onclick="authorizeUser('${id}')">Autorizar</button>`}
-            ${d.role === 'admin' ? '<span class="badge">ADMIN</span>' : ''}
+            ${
+              d.authorized
+              ? `<button class="btn secondary" onclick="revokeUser('${id}')">Revogar</button>`
+              : `<button class="btn" onclick="authorizeUser('${id}')">Autorizar</button>`
+            }
+            ${d.role === "admin" ? "<span class='badge'>ADMIN</span>" : ""}
           </div>
         `;
+
         usersEl.appendChild(row);
       });
     }
   }
 
-  // videos list
+  // ----- VIDEOS -----
   const videosEl = document.getElementById('adminVideosList');
   if (videosEl){
-    videosEl.innerHTML = 'Carregando...';
+    videosEl.innerHTML = "Carregando...";
     const snap = await db.collection('videos').orderBy('createdAt','asc').get();
-    if (snap.empty) videosEl.innerHTML = '<p>Sem vídeos</p>';
-    else {
-      videosEl.innerHTML = '';
+
+    if (snap.empty){
+      videosEl.innerHTML = "<p>Sem vídeos</p>";
+    } else {
+      videosEl.innerHTML = "";
       snap.forEach(docSnap => {
         const d = docSnap.data();
         const id = docSnap.id;
-        const row = document.createElement('div');
-        row.className = 'admin-row';
-row.innerHTML = `
-  <div>
-    <strong>${escapeHtml(d.title || '')}</strong><br>
-    <small>${escapeHtml(d.filePath || "sem arquivo")}</small>
-  </div>
-  <div>
-    <button class="btn danger" onclick="removeVideo('${id}')">Remover</button>
-  </div>
-`;
+
+        const row = document.createElement("div");
+        row.className = "admin-row";
+
+        row.innerHTML = `
+          <div>
+            <strong>${escapeHtml(d.title)}</strong><br>
+            <small>${escapeHtml(d.filePath)}</small>
+          </div>
+          <div>
+            <button class="btn danger" onclick="removeVideo('${id}')">Remover</button>
+          </div>
+        `;
+
         videosEl.appendChild(row);
       });
     }
   }
+
 }
 
 window.authorizeUser = async function(docId){
-  if (!confirm('Autorizar este usuário?')) return;
+  if (!confirm("Autorizar este usuário?")) return;
   await db.collection('users').doc(docId).update({ authorized: true });
   loadAdminLists();
 };
+
 window.revokeUser = async function(docId){
-  if (!confirm('Revogar autorização?')) return;
+  if (!confirm("Revogar autorização?")) return;
   await db.collection('users').doc(docId).update({ authorized: false });
   loadAdminLists();
 };
+
 window.removeVideo = async function(docId){
-  if (!confirm('Remover vídeo?')) return;
+  if (!confirm("Remover vídeo?")) return;
   await db.collection('videos').doc(docId).delete();
   loadAdminLists();
 };
 
-// ---------- Dashboard protection: block context menu & keys ----------
-function attachDashboardProtection(){
-  // block right-click (dashboard only)
-  document.addEventListener('contextmenu', e => {
-    // allow for admin? we apply only on dashboard page where content is sensitive
-    e.preventDefault();
-  });
 
-  // block some key combos
+
+// ==============================
+// PROTEÇÃO DO DASHBOARD
+// ==============================
+function attachDashboardProtection(){
+  document.addEventListener('contextmenu', e => e.preventDefault());
+
   document.addEventListener('keydown', function(e){
     if (e.key === 'F12') e.preventDefault();
     if (e.ctrlKey){
-      const blocked = ['u','c','v','s','a','p'];
-      if (blocked.includes(e.key.toLowerCase())) e.preventDefault();
+      if (['u','c','v','s','a','p'].includes(e.key.toLowerCase())) e.preventDefault();
     }
     if (e.ctrlKey && e.shiftKey){
-      const blocked = ['i','j','c'];
-      if (blocked.includes(e.key.toLowerCase())) e.preventDefault();
+      if (['i','j','c'].includes(e.key.toLowerCase())) e.preventDefault();
     }
   });
 }
 
-// ---------- Small toast helper ----------
+
+// ==============================
+// TOAST
+// ==============================
 function toast(msg){
-  // small non-blocking message
   const t = document.createElement('div');
   t.className = 'toast';
   t.textContent = msg;
   document.body.appendChild(t);
+
   setTimeout(()=> t.classList.add('visible'), 20);
-  setTimeout(()=> { t.classList.remove('visible'); setTimeout(()=> t.remove(),300); }, 3500);
+  setTimeout(()=>{
+    t.classList.remove('visible');
+    setTimeout(()=> t.remove(), 300);
+  }, 3500);
 }
