@@ -75,7 +75,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
   const list = document.getElementById('videosList');
   list.innerHTML = '';
 
-  const snap = await firebase.firestore().collection('videos').orderBy('createdAt','asc').get();
+  const snap = await firebase.firestore().collection('aulas').orderBy('createdAt','asc').get();
   if (snap.empty) {
     list.innerHTML = '<p>Nenhum vídeo disponível.</p>';
     document.getElementById('dashboard-content').style.display = 'block';
@@ -87,7 +87,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     if (!d.storagePath) return;
 
     const { data, error } = await supabase.storage
-      .from('videos')
+      .from('aulas')
       .createSignedUrl(d.storagePath, 60 * 60);
 
     if (error || !data) return;
