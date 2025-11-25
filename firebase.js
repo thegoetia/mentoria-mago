@@ -1,3 +1,4 @@
+
 const firebaseConfig = {
   apiKey: "AIzaSyAaRl3DLS2ocGmx1yeJoXVasdg7zKQC2Zs",
   authDomain: "mentoria-auth-871ad.firebaseapp.com",
@@ -8,4 +9,7 @@ const firebaseConfig = {
   measurementId: "G-QH4CEXWLEL"
 };
 
+
 firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
