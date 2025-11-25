@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Registro - Mentoria</title>
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="firebase.js"></script>
+  <script src="auth.js" defer></script>
+</head>
+
+<body>
+  <div class="login-box">
+    <h2>Criar Conta</h2>
+
+    <form id="registerForm">
+      <input type="email" id="regEmail" placeholder="Email" required>
+      <input type="password" id="regPassword" placeholder="Senha" required>
+      <button type="submit">Registrar</button>
+    </form>
+
+    <p style="margin-top: 10px;">
+      Já tem conta?
+      <a style="color:#4caf50;" href="index.html">Fazer login</a>
+    </p>
+  </div>
+</body>
+</html>
