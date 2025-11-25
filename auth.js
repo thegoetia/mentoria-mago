@@ -1,5 +1,6 @@
-// LOGIN
+// LOGIN & REGISTER HANDLING
 document.addEventListener("DOMContentLoaded", () => {
+  // LOGIN FORM
   const loginForm = document.getElementById("loginForm");
 
   if (loginForm) {
@@ -19,7 +20,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // PROTEÇÃO DE PÁGINA
+  // REGISTER FORM
+  const registerForm = document.getElementById("registerForm");
+
+  if (registerForm) {
+    registerForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById("regEmail").value;
+      const password = document.getElementById("regPassword").value;
+
+      firebase.auth().createUserWithEmailAndPassword(email, password)
+        .then(() => {
+          alert("Conta criada com sucesso!");
+          window.location.href = "home.html"; // entra direto
+        })
+        .catch((error) => {
+          alert("Erro: " + error.message);
+        });
+    });
+  }
+
+  // PAGE PROTECTION
   firebase.auth().onAuthStateChanged((user) => {
     const protectedContent = document.getElementById("protected-content");
 
