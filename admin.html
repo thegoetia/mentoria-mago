@@ -1,139 +1,51 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <title>Painel Admin</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin • Mentoria</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <script src="firebase.js"></script>
+  <script src="auth.js" defer></script>
 </head>
 <body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h2>Admin • Mentoria</h2>
+      <div class="header-actions">
+        <button data-theme-toggle class="btn small" onclick="Theme.toggle()">Light</button>
+        <button data-logout class="btn ghost">Sair</button>
+      </div>
+    </div>
+  </header>
 
-<div id="admin-panel" style="display:none">
-    <h1>Painel Administrador</h1>
+  <main class="container">
+    <section id="admin-area" class="admin-grid" style="display:none">
+      <div class="card">
+        <h3>Autorizar aluno</h3>
+        <form id="addUserForm" class="form-inline">
+          <input id="authEmail" type="email" placeholder="Email do aluno" required />
+          <button class="btn" type="submit">Autorizar</button>
+        </form>
 
-    <button id="logout">Sair</button>
+        <div id="usersList" class="list"></div>
+      </div>
 
-    <h2>Autorizar Usuários</h2>
-    <div id="user-list"></div>
+      <div class="card">
+        <h3>Gerenciar vídeos</h3>
+        <form id="addVideoForm" class="form">
+          <input id="videoTitle" placeholder="Título (opcional)" />
+          <input id="videoUrl" placeholder="Link do YouTube (qualquer formato)" required />
+          <button class="btn" type="submit">Adicionar vídeo</button>
+        </form>
 
-    <h2>Adicionar Vídeo</h2>
-    <input type="text" id="video-title" placeholder="Título do vídeo">
-    <input type="text" id="video-url" placeholder="URL embed do YouTube">
-    <button id="add-video-btn">Adicionar Vídeo</button>
-
-    <h2>Vídeos Existentes</h2>
-    <div id="admin-video-list"></div>
-</div>
-
-<script type="module">
-import { auth, db } from "./firebase.js";
-import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { 
-    collection, getDocs, doc, updateDoc, orderBy, query, deleteDoc, addDoc 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = "index.html";
-        return;
-    }
-
-    const ref = doc(db, "users", user.uid);
-    const snap = await getDoc(ref);
-
-    if (!snap.exists() || snap.data().role !== "admin") {
-        alert("Acesso negado.");
-        window.location.href = "dashboard.html";
-        return;
-    }
-
-    document.getElementById("admin-panel").style.display = "block";
-
-    loadUsers();
-    loadVideos();
-});
-
-async function loadUsers() {
-    const usersDiv = document.getElementById("user-list");
-    usersDiv.innerHTML = "";
-
-    const q = query(collection(db, "users"));
-    const usersSnap = await getDocs(q);
-
-    usersSnap.forEach((docSnap) => {
-        const data = docSnap.data();
-
-        const div = document.createElement("div");
-        div.classList.add("user-item");
-
-        div.innerHTML = `
-            <p>${data.email}</p>
-            <button onclick="authorize('${docSnap.id}')">Autorizar</button>
-            <button onclick="revoke('${docSnap.id}')">Revogar</button>
-        `;
-
-        usersDiv.appendChild(div);
-    });
-}
-
-async function authorize(uid) {
-    await updateDoc(doc(db, "users", uid), { authorized: true });
-    loadUsers();
-}
-
-async function revoke(uid) {
-    await updateDoc(doc(db, "users", uid), { authorized: false });
-    loadUsers();
-}
-
-async function loadVideos() {
-    const list = document.getElementById("admin-video-list");
-    list.innerHTML = "";
-
-    const q = query(collection(db, "videos"), orderBy("createdAt", "asc"));
-    const snap = await getDocs(q);
-
-    snap.forEach((docSnap) => {
-        const data = docSnap.data();
-
-        const div = document.createElement("div");
-        div.classList.add("video-item");
-
-        div.innerHTML = `
-            <p>${data.title}</p>
-            <iframe src="${data.url}" width="300"></iframe>
-            <button onclick="delVideo('${docSnap.id}')">Excluir</button>
-        `;
-
-        list.appendChild(div);
-    });
-}
-
-async function delVideo(id) {
-    await deleteDoc(doc(db, "videos", id));
-    loadVideos();
-}
-
-document.getElementById("add-video-btn").onclick = async () => {
-    const title = document.getElementById("video-title").value;
-    const url = document.getElementById("video-url").value;
-
-    if (!title || !url) {
-        alert("Preencha todos os campos.");
-        return;
-    }
-
-    await addDoc(collection(db, "videos"), {
-        title,
-        url,
-        createdAt: Date.now()
-    });
-
-    alert("Vídeo adicionado!");
-    loadVideos();
-};
-
-document.getElementById("logout").onclick = () => signOut(auth);
-</script>
-
+        <div id="adminVideosList" class="list"></div>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
