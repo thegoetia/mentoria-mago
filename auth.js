@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // URL pública
       const publicUrl = supabaseClient
         .storage
-        .from("videos")
+        .from("aulas")
         .getPublicUrl(fileName).data.publicUrl;
 
       // Registrar no Firestore
