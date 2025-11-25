@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin • Mentoria</title>
+
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -12,6 +15,7 @@
   <script src="firebase.js"></script>
   <script src="auth.js" defer></script>
 </head>
+
 <body>
   <header class="site-header">
     <div class="container header-inner">
@@ -25,27 +29,32 @@
 
   <main class="container">
     <section id="admin-area" class="admin-grid" style="display:none">
+      
+      <!-- Autorizar aluno -->
       <div class="card">
         <h3>Autorizar aluno</h3>
-        <form id="addUserForm" class="form-inline">
-          <input id="authEmail" type="email" placeholder="Email do aluno" required />
+        <form id="addUserForm" class="form-inline" autocomplete="off">
+          <input id="authEmail" type="email" placeholder="Email do aluno" required autocomplete="off" />
           <button class="btn" type="submit">Autorizar</button>
         </form>
 
         <div id="usersList" class="list"></div>
       </div>
 
+      <!-- Gerenciar vídeos -->
       <div class="card">
         <h3>Gerenciar vídeos</h3>
-        <form id="addVideoForm" class="form">
-          <input id="videoTitle" placeholder="Título (opcional)" />
-          <input id="videoUrl" placeholder="Link do YouTube (qualquer formato)" required />
+        <form id="addVideoForm" class="form" autocomplete="off">
+          <input id="videoTitle" placeholder="Título (opcional)" autocomplete="off" />
+          <input id="videoUrl" placeholder="Link do YouTube (qualquer formato)" required autocomplete="off" />
           <button class="btn" type="submit">Adicionar vídeo</button>
         </form>
 
         <div id="adminVideosList" class="list"></div>
       </div>
+
     </section>
   </main>
+
 </body>
 </html>
