@@ -13,71 +13,78 @@
   <script src="auth.js" defer></script>
 
   <style>
-    /* player responsive 16:9 + overlay */
-    .video-card { width:100%; margin-bottom:22px; }
-    .video-box { position:relative; width:100%; padding-top:56.25%; background:#000; border-radius:12px; overflow:hidden; }
-    .video-box iframe { position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:auto; } /* pointer-events not required now */
-    .player-overlay {
-      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-      background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); cursor:pointer; z-index:10;
+    /* Player padrão, responsivo 16:9 */
+
+    .video-card{ width:100%; margin-bottom:30px; }
+
+    .iframe-protect{
+      position:relative;
+      width:100%;
+      padding-top:56.25%; /* 16:9 */
+      background:#000;
+      border-radius:12px;
+      overflow:hidden;
     }
-    .player-overlay img { width:84px; height:84px; }
-    .video-title{ margin-top:10px; font-weight:600; text-align:center; }
-    /* small responsive */
-    @media(max-width:600px){ .player-overlay img{ width:64px; height:64px; } }
+
+    .iframe-protect iframe{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      border:0;
+      pointer-events:auto;
+    }
+
+    .video-title{
+      margin-top:10px;
+      font-weight:600;
+      text-align:center;
+    }
   </style>
+
 </head>
 <body oncontextmenu="return false">
 
-  <header class="site-header">
-    <div class="container header-inner">
-      <h2>Mentoria</h2>
-      <div class="header-actions">
-        <span id="userName" class="muted"></span>
-        <button data-theme-toggle class="btn small" onclick="Theme.toggle()">Light</button>
-        <button data-logout class="btn ghost">Sair</button>
-      </div>
+<header class="site-header">
+  <div class="container header-inner">
+    <h2>Mentoria</h2>
+    <div class="header-actions">
+      <span id="userName" class="muted"></span>
+      <button data-theme-toggle class="btn small" onclick="Theme.toggle()">Light</button>
+      <button data-logout class="btn ghost">Sair</button>
     </div>
-  </header>
+  </div>
+</header>
 
-  <main class="container">
-    <section id="dashboard-content" class="content-area" style="display:none">
-      <div class="welcome card">
-        <h1>Bem-vindo</h1>
-        <p>Abaixo estão as mentorias disponíveis para você (ordem cronológica).</p>
-      </div>
+<main class="container">
+  <section id="dashboard-content" class="content-area" style="display:none">
+    <div class="welcome card">
+      <h1>Bem-vindo</h1>
+      <p>Abaixo estão as mentorias disponíveis para você (ordem cronológica).</p>
+    </div>
 
-      <div id="videosList" class="videos-grid"></div>
-    </section>
-  </main>
+    <div id="videosList" class="videos-grid"></div>
+  </section>
+</main>
 
 <script>
-/*
-  Script: carrega vídeos e injeta iframe apenas no clique (anti-cópia)
-  Observações:
-  - O campo da collection usado para ordenação é `createdAt`. Se for outro (ex: timestamp),
-    troque orderBy('createdAt','asc') para o campo correto.
-  - Cada documento de vídeo deve ter: { title, ytId, createdAt }.
-  - O embed URL final usado: https://www.youtube.com/embed/ID?rel=0&modestbranding=1&controls=1
-*/
 
 firebase.auth().onAuthStateChanged(async (user) => {
   if (!user) return window.location.href = 'index.html';
 
-  // opcional: você já faz checagem de autorização em auth.js; aqui só carregamos vídeos
   const list = document.getElementById('videosList');
   list.innerHTML = '';
 
-  // tenta orderBy createdAt (crescente). Ajuste se usar outro campo.
   let snap;
-  try {
-    snap = await firebase.firestore().collection('videos').orderBy('createdAt','asc').get();
-  } catch(e) {
-    // fallback: sem order
+  try{
+    snap = await firebase.firestore().collection('videos')
+      .orderBy('createdAt','asc')
+      .get();
+  } catch(e){
     snap = await firebase.firestore().collection('videos').get();
   }
 
-  if (snap.empty) {
+  if(snap.empty){
     list.innerHTML = '<p>Nenhum vídeo disponível.</p>';
     document.getElementById('dashboard-content').style.display = 'block';
     return;
@@ -85,70 +92,48 @@ firebase.auth().onAuthStateChanged(async (user) => {
 
   snap.forEach(doc => {
     const d = doc.data();
-    const ytId = d.ytId || (d.url ? (new URL(d.url)).searchParams.get('v') : null);
-    // if can't resolve, skip
-    if (!ytId) return;
+    const ytId = d.ytId;
+    if(!ytId) return;
 
-    // build card
+    const embedUrl =
+      `https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1&controls=1`;
+
     const card = document.createElement('div');
     card.className = 'video-card';
 
-    // data-src holds the embed url (not loaded yet)
-    const embedBase = `https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1&controls=1`;
-
     card.innerHTML = `
-      <div class="video-box">
-        <div class="player-overlay" title="Clique para reproduzir">
-          <img src="https://img.icons8.com/ios-filled/100/ffffff/play--v1.png" alt="play">
-        </div>
-
-        <!-- iframe sem src inicialmente (data-src) -->
-        <iframe data-src="${embedBase}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      <div class="iframe-protect" oncontextmenu="return false;">
+        <iframe
+          src="${embedUrl}"
+          allow="encrypted-media; picture-in-picture; fullscreen"
+          allowfullscreen>
+        </iframe>
       </div>
       <div class="video-title">${escapeHtml(d.title || 'Mentoria')}</div>
     `;
 
-    // attach click handler to overlay: set iframe.src and remove overlay
-    const overlay = card.querySelector('.player-overlay');
-    const iframe = card.querySelector('iframe');
-
-    overlay.addEventListener('click', () => {
-      // inject src with autoplay (user-generated click allows autoplay)
-      const base = iframe.getAttribute('data-src') || '';
-      // append autoplay safely (if already has ? or not)
-      const sep = base.indexOf('?') === -1 ? '?' : '&';
-      iframe.src = base + sep + 'autoplay=1';
-      // hide overlay
-      overlay.style.display = 'none';
-      // focus iframe (optional)
-      try { iframe.focus(); } catch(_) {}
-    });
-
     list.appendChild(card);
   });
 
-  // show content after injection
   document.getElementById('dashboard-content').style.display = 'block';
 });
 
-// small helpers & protections
+// helper
 function escapeHtml(s){
   if(!s) return '';
-  return s.replace(/[&<>"'\/]/g, function(c){
-    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;'}[c];
-  });
+  return s.replace(/[&<>"'\/]/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;', '/':'&#x2F;'
+  })[c]);
 }
 
-// block common shortcuts (light)
-document.addEventListener('keydown', function(e){
+// bloqueios básicos
+document.addEventListener('keydown', e => {
   if (e.ctrlKey){
-    const blocked = ['u','U','c','C','s','S','i','I'];
-    if (blocked.includes(e.key)) e.preventDefault();
+    const block = ['u','s','c','i','p'];
+    if (block.includes(e.key.toLowerCase())) e.preventDefault();
   }
 });
 
-// block right click globally (already set on body too)
-document.addEventListener('contextmenu', e => e.preventDefault());
 </script>
 
 </body>
