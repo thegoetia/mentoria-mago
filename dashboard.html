@@ -135,6 +135,11 @@ document.addEventListener('keydown', e => {
 });
 
 </script>
-
+<script>
+document.querySelector('.video-protector').addEventListener('click', () => {
+    document.getElementById('videoPlayer').style.pointerEvents = "auto";
+    document.querySelector('.video-protector').style.display = "none";
+});
+</script>
 </body>
 </html>
