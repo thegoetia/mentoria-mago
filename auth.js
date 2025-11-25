@@ -251,19 +251,19 @@ async function loadStudentVideos(){
 
 // play handler (global)
 window.playVideo = function(overlay){
-  const parent = overlay.parentElement;
-  const iframe = parent.querySelector('.video-frame');
-  const playBtn = parent.querySelector('.play-button');
+  const wrapper = overlay.parentElement;
+  const iframe = wrapper.querySelector('.video-frame');
 
-  // permite interação no iframe APÓS clique
+  // liberar interação no iframe
   iframe.style.pointerEvents = 'auto';
 
-  // remove overlay e botão
+  // remover overlay e play button
   overlay.style.display = 'none';
+  const playBtn = wrapper.querySelector('.play-button');
   if (playBtn) playBtn.style.display = 'none';
 
-  // autoplay seguro
-  if (!iframe.dataset.started){
+  // ativar autoplay corretamente
+  if (!iframe.dataset.started) {
     iframe.dataset.started = "1";
     iframe.src = iframe.src + "&autoplay=1";
   }
