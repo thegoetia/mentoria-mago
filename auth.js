@@ -1,5 +1,5 @@
 // =======================
-// AUTH.JS (Firebase + Supabase corrigido e login fix)
+// AUTH.JS COMPLETO (Firebase + Supabase, login + upload + dashboard)
 // =======================
 
 // ---------- Helpers ----------
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loginForm){
     loginForm.addEventListener('submit', async function(e){
       e.preventDefault();
-      e.stopPropagation(); // previne conflitos de outros listeners
+      e.stopPropagation();
 
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
@@ -132,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       status.textContent = "Enviando vídeo...";
 
-      const fileExt = file.name.split('.').pop();
       const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
 
       // UPLOAD Supabase (corrigido para evitar Invalid Compact JWS)
@@ -147,15 +146,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // URL pública
-      const { publicUrl, error: urlError } = supabaseClient
+      const publicUrl = supabaseClient
         .storage
         .from("videos")
-        .getPublicUrl(fileName);
-
-      if (urlError){
-        status.textContent = "Erro ao obter URL pública: " + urlError.message;
-        return;
-      }
+        .getPublicUrl(fileName)
+        .data.publicUrl;
 
       // Registrar no Firestore
       await db.collection("videos").add({
@@ -218,8 +213,9 @@ document.addEventListener('DOMContentLoaded', () => {
 }); // DOMContentLoaded END
 
 // ==============================
-// STUDENT — LISTAR E MOSTRAR MP4
+// FUNÇÕES AUXILIARES
 // ==============================
+
 async function loadStudentVideos(){
   const listEl = document.getElementById("videosList");
   if (!listEl) return;
@@ -266,9 +262,6 @@ window.playVideo = function(overlay){
   video.play().catch(()=>{});
 };
 
-// ==============================
-// ADMIN — LISTAS (Usuários e Vídeos)
-// ==============================
 async function loadAdminLists(){
 
   // ----- USERS -----
@@ -360,12 +353,9 @@ window.removeVideo = async function(docId){
   loadAdminLists();
 };
 
-// ==============================
-// PROTEÇÃO DO DASHBOARD
-// ==============================
+// Proteção dashboard
 function attachDashboardProtection(){
   document.addEventListener('contextmenu', e => e.preventDefault());
-
   document.addEventListener('keydown', function(e){
     if (e.key === 'F12') e.preventDefault();
     if (e.ctrlKey){
@@ -377,9 +367,7 @@ function attachDashboardProtection(){
   });
 }
 
-// ==============================
-// TOAST
-// ==============================
+// Toast
 function toast(msg){
   const t = document.createElement('div');
   t.className = 'toast';
