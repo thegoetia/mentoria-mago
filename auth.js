@@ -1,5 +1,5 @@
 // =======================
-//  AUTH.JS (CORRIGIDO)
+//  AUTH.JS (CORRIGIDO - upload Supabase seguro)
 // =======================
 
 // ---------- Helpers ----------
@@ -47,7 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================
   // SUPABASE CLIENT UNIFICADO
   // ==========================
-  const supabaseClient = window.supabaseClient;
+  const SUPABASE_URL = "https://xjmmgvbzfsgjltzggysv.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
+  const supabaseClient = window.supabaseClient || supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   if (!supabaseClient){
     console.warn("⚠ SupabaseClient não disponível");
   }
@@ -132,38 +135,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
 
-      // UPLOAD Supabase
-      const { data, error } = await supabaseClient
-        .storage
-        .from("aulas") // bucket unificado
-        .upload(fileName, file, { upsert: false });
+      try {
+        // Upload usando método seguro para navegador
+        const { data, error } = await supabaseClient
+          .storage
+          .from("videos")
+          .upload(fileName, file);
 
-      if (error){
-        status.textContent = "Erro ao enviar: " + error.message;
-        return;
+        if (error) throw error;
+
+        const { data: urlData } = supabaseClient
+          .storage
+          .from("videos")
+          .getPublicUrl(fileName);
+
+        // Registrar no Firestore
+        await db.collection("videos").add({
+          title,
+          url: urlData.publicUrl,
+          filePath: fileName,
+          type: "mp4",
+          createdAt: Date.now()
+        });
+
+        status.textContent = "Vídeo enviado com sucesso!";
+        uploadForm.reset();
+        loadAdminLists();
+
+      } catch(err) {
+        console.error(err);
+        status.textContent = "Erro ao enviar: " + (err.message || err);
       }
-
-      // URL pública
-      const publicUrl = supabaseClient
-        .storage
-        .from("aulas")
-        .getPublicUrl(fileName).data.publicUrl;
-
-      // Registrar no Firestore
-      await db.collection("aulas").add({
-        title,
-        url: publicUrl,
-        filePath: fileName,
-        type: "mp4",
-        createdAt: Date.now()
-      });
-
-      status.textContent = "Vídeo enviado com sucesso!";
-      uploadForm.reset();
-      loadAdminLists();
     });
   }
-
 
   // =====================
   // PROTEÇÃO DAS PÁGINAS
@@ -210,8 +214,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 }); // DOMContentLoaded END
 
-
-
 // ==============================
 // STUDENT — LISTAR E MOSTRAR MP4
 // ==============================
@@ -221,7 +223,7 @@ async function loadStudentVideos(){
 
   listEl.innerHTML = "<p>Carregando...</p>";
 
-  const snap = await db.collection("aulas").orderBy("createdAt","asc").get();
+  const snap = await db.collection("videos").orderBy("createdAt","asc").get();
   if (snap.empty){
     listEl.innerHTML = "<p>Nenhum vídeo disponível.</p>";
     return;
@@ -254,14 +256,10 @@ async function loadStudentVideos(){
 
 window.playVideo = function(overlay){
   const video = overlay.parentElement.querySelector("video");
-
   overlay.style.display = "none";
   video.style.pointerEvents = "auto";
-
   video.play().catch(()=>{});
 };
-
-
 
 // ==============================
 // ADMIN — LISTAS (Usuários e Vídeos)
@@ -309,7 +307,7 @@ async function loadAdminLists(){
   const videosEl = document.getElementById('adminVideosList');
   if (videosEl){
     videosEl.innerHTML = "Carregando...";
-    const snap = await db.collection('aulas').orderBy('createdAt','asc').get();
+    const snap = await db.collection('videos').orderBy('createdAt','asc').get();
 
     if (snap.empty){
       videosEl.innerHTML = "<p>Sem vídeos</p>";
@@ -357,8 +355,6 @@ window.removeVideo = async function(docId){
   loadAdminLists();
 };
 
-
-
 // ==============================
 // PROTEÇÃO DO DASHBOARD
 // ==============================
@@ -375,7 +371,6 @@ function attachDashboardProtection(){
     }
   });
 }
-
 
 // ==============================
 // TOAST
