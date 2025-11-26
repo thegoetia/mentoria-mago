@@ -193,7 +193,7 @@ async function loadStudentVideos(){
   const listEl = document.getElementById('videosList');
   if (!listEl) return;
   listEl.innerHTML = '<p>Carregando vídeos...</p>';
-  const snap = await db.collection('videos').orderBy('createdAt','asc').get(); // <--- alterado para asc
+  const snap = await db.collection('videos').orderBy('createdAt','asc').get();
   if (snap.empty){
     listEl.innerHTML = '<p>Nenhum vídeo disponível ainda.</p>';
     return;
@@ -206,7 +206,12 @@ async function loadStudentVideos(){
     card.innerHTML = `
       <h3>${escapeHtml(d.title || 'Mentoria')}</h3>
       <div class="video-embed">
-        <iframe src="https://www.youtube.com/embed/${d.ytId}" frameborder="0" allowfullscreen></iframe>
+        <iframe 
+          src="https://www.youtube.com/embed/${d.ytId}?controls=0&modestbranding=1&rel=0&disablekb=1&fs=1&iv_load_policy=3" 
+          frameborder="0" 
+          allowfullscreen
+          allow="autoplay; encrypted-media"
+        ></iframe>
       </div>
     `;
     listEl.appendChild(card);
