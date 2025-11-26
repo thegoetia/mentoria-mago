@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // UPLOAD Supabase
       const { data, error } = await supabaseClient
         .storage
-        .from("videos") // bucket unificado
+        .from("aulas") // bucket unificado
         .upload(fileName, file, { upsert: false });
 
       if (error){
@@ -146,11 +146,11 @@ document.addEventListener('DOMContentLoaded', () => {
       // URL pública
       const publicUrl = supabaseClient
         .storage
-        .from("videos")
+        .from("aulas")
         .getPublicUrl(fileName).data.publicUrl;
 
       // Registrar no Firestore
-      await db.collection("videos").add({
+      await db.collection("aulas").add({
         title,
         url: publicUrl,
         filePath: fileName,
@@ -221,7 +221,7 @@ async function loadStudentVideos(){
 
   listEl.innerHTML = "<p>Carregando...</p>";
 
-  const snap = await db.collection("videos").orderBy("createdAt","asc").get();
+  const snap = await db.collection("aulas").orderBy("createdAt","asc").get();
   if (snap.empty){
     listEl.innerHTML = "<p>Nenhum vídeo disponível.</p>";
     return;
@@ -309,7 +309,7 @@ async function loadAdminLists(){
   const videosEl = document.getElementById('adminVideosList');
   if (videosEl){
     videosEl.innerHTML = "Carregando...";
-    const snap = await db.collection('videos').orderBy('createdAt','asc').get();
+    const snap = await db.collection('aulas').orderBy('createdAt','asc').get();
 
     if (snap.empty){
       videosEl.innerHTML = "<p>Sem vídeos</p>";
