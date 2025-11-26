@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         alert('Conta criada com sucesso! Aguarde autorização do administrador.');
-        await auth.signOut(); // força voltar para login (não fica logado automaticamente)
+        await auth.signOut();
         window.location.href = 'index.html';
       } catch(err){
         alert('Erro: ' + err.message);
@@ -95,12 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = document.getElementById('authEmail').value.trim();
       if(!email) return alert('Digite um email válido.');
       try {
-        // find user by email in 'users' collection
         const snap = await db.collection('users').where('email','==', email).get();
         if (snap.empty){
           return alert('Usuário não encontrado. Peça para o aluno se registrar primeiro.');
         }
-        // autoriza todos os documentos com esse email (normalmente haverá só 1)
         snap.forEach(async (doc) => {
           await db.collection('users').doc(doc.id).update({ authorized: true });
         });
@@ -147,7 +145,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'index.html';
         return;
       }
-      // read user's doc
       const udoc = await db.collection('users').doc(user.uid).get();
       if (!udoc.exists){
         alert('Perfil não encontrado. Contate o admin.');
@@ -162,7 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'index.html';
         return;
       }
-      // aprovado -> carregar vídeos do usuário
       document.getElementById('userName') && (document.getElementById('userName').textContent = udata.name || udata.email);
       loadStudentVideos();
     }
@@ -180,7 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'dashboard.html';
         return;
       }
-      // se admin, carregar listas
       loadAdminLists();
     }
   });
@@ -193,12 +188,12 @@ async function logout(){
   window.location.href = 'index.html';
 }
 
-// === Student: load videos ===
+// === Student: load videos (ORDEM CRESCENTE) ===
 async function loadStudentVideos(){
   const listEl = document.getElementById('videosList');
   if (!listEl) return;
   listEl.innerHTML = '<p>Carregando vídeos...</p>';
-  const snap = await db.collection('videos').orderBy('createdAt','desc').get();
+  const snap = await db.collection('videos').orderBy('createdAt','asc').get(); // <--- alterado para asc
   if (snap.empty){
     listEl.innerHTML = '<p>Nenhum vídeo disponível ainda.</p>';
     return;
@@ -220,7 +215,6 @@ async function loadStudentVideos(){
 
 // === Admin: load lists ===
 async function loadAdminLists(){
-  // users list
   const usersEl = document.getElementById('usersList');
   if (usersEl){
     usersEl.innerHTML = 'Carregando usuários...';
@@ -249,7 +243,6 @@ async function loadAdminLists(){
     }
   }
 
-  // videos list
   const videosEl = document.getElementById('adminVideosList');
   if (videosEl){
     videosEl.innerHTML = 'Carregando vídeos...';
@@ -272,7 +265,7 @@ async function loadAdminLists(){
   }
 }
 
-// === Admin actions: authorize/revoke users and remove videos ===
+// === Admin actions ===
 async function authorizeUser(docId){
   if(!confirm('Autorizar este usuário?')) return;
   try {
