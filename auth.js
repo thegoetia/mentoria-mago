@@ -9,9 +9,9 @@ function escapeHtml(s){
   });
 }
 
-function extractYouTubeID(url){
-  if(!url) return null;
-  const m = url.match(/(?:v=|\/)([A-Za-z0-9_-]{11})(?:$|&|\/|\?)/);
+// Extrai ID do Google Drive
+function extractDriveID(url){
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
   return m ? m[1] : null;
 }
 
@@ -111,19 +111,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ADMIN: add video form
+  // ADMIN: add video form (Google Drive)
   const addVideoForm = document.getElementById('addVideoForm');
   if (addVideoForm){
     addVideoForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('videoTitle').value.trim();
       const url = document.getElementById('videoUrl').value.trim();
-      const id = extractYouTubeID(url);
-      if(!id) return alert('URL do YouTube inválida. Cole o link completo do vídeo.');
+      const id = extractDriveID(url);
+      if(!id) return alert('URL do Google Drive inválida. Cole o link de compartilhamento completo.');
       try {
         await db.collection('videos').add({
           title: title || null,
-          ytId: id,
+          driveId: id,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         alert('Vídeo adicionado!');
@@ -188,7 +188,7 @@ async function logout(){
   window.location.href = 'index.html';
 }
 
-// === Student: load videos (ORDEM CRESCENTE) ===
+// === Student: load videos (Google Drive) ===
 async function loadStudentVideos(){
   const listEl = document.getElementById('videosList');
   if (!listEl) return;
@@ -203,16 +203,13 @@ async function loadStudentVideos(){
     const d = doc.data();
     const card = document.createElement('div');
     card.className = 'video-card';
+    const videoURL = `https://drive.google.com/uc?export=download&id=${d.driveId}`;
     card.innerHTML = `
       <h3>${escapeHtml(d.title || 'Mentoria')}</h3>
-      <div class="video-embed">
-        <iframe 
-          src="https://www.youtube.com/embed/${d.ytId}?controls=0&modestbranding=1&rel=0&disablekb=1&fs=1&iv_load_policy=3" 
-          frameborder="0" 
-          allowfullscreen
-          allow="autoplay; encrypted-media"
-        ></iframe>
-      </div>
+      <video controls style="width:100%; border-radius:8px;" preload="metadata">
+        <source src="${videoURL}" type="video/mp4">
+        Seu navegador não suporta vídeo.
+      </video>
     `;
     listEl.appendChild(card);
   });
@@ -261,7 +258,7 @@ async function loadAdminLists(){
         const row = document.createElement('div');
         row.className = 'admin-row';
         row.innerHTML = `
-          <div><strong>${escapeHtml(d.title || '')}</strong><br><small>${escapeHtml(d.ytId)}</small></div>
+          <div><strong>${escapeHtml(d.title || '')}</strong><br><small>${escapeHtml(d.driveId)}</small></div>
           <div><button class="btn danger" onclick="removeVideo('${id}')">Remover</button></div>
         `;
         videosEl.appendChild(row);
