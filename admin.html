@@ -4,14 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin • Mentoria</title>
-
   <link rel="stylesheet" href="style.css" />
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
   <script src="firebase.js"></script>
   <script src="auth.js" defer></script>
 
@@ -26,101 +24,44 @@
 </head>
 
 <body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <h2>Admin • Mentoria</h2>
-      <div class="header-actions">
-        <button data-theme-toggle class="btn small" onclick="Theme.toggle()">Light</button>
-        <button data-logout class="btn ghost">Sair</button>
-      </div>
+<header class="site-header">
+  <div class="container header-inner">
+    <h2>Admin • Mentoria</h2>
+    <div class="header-actions">
+      <button data-theme-toggle class="btn small" onclick="Theme.toggle()">Light</button>
+      <button data-logout class="btn ghost">Sair</button>
     </div>
-  </header>
+  </div>
+</header>
 
-  <main class="container">
-    <section id="admin-area" class="admin-grid" style="display:none">
+<main class="container">
+  <section id="admin-area" class="admin-grid" style="display:none">
 
-      <!-- Autorizar aluno -->
-      <div class="card">
-        <h3>Autorizar aluno</h3>
-        <form id="addUserForm" class="form-inline" autocomplete="off">
-          <input id="authEmail" type="email" placeholder="Email do aluno" required />
-          <button class="btn" type="submit">Autorizar</button>
-        </form>
-        <div id="usersList" class="list"></div>
-      </div>
+    <div class="card">
+      <h3>Autorizar aluno</h3>
+      <form id="addUserForm" class="form-inline" autocomplete="off">
+        <input id="authEmail" type="email" placeholder="Email do aluno" required />
+        <button class="btn" type="submit">Autorizar</button>
+      </form>
+      <div id="usersList" class="list"></div>
+    </div>
 
-      <!-- Upload de vídeo pelo Supabase -->
-      <div class="card">
-        <h3>Enviar vídeo (MP4)</h3>
-        <form id="uploadVideoForm" class="form" autocomplete="off">
-          <input id="uploadTitle" placeholder="Título do vídeo" />
-          <input id="uploadFile" type="file" accept="video/mp4" required />
-          <button class="btn" type="submit">Enviar</button>
-        </form>
-        <div id="uploadStatus" class="muted"></div>
-      </div>
+    <div class="card">
+      <h3>Enviar vídeo (MP4)</h3>
+      <form id="uploadVideoForm" class="form" autocomplete="off">
+        <input id="uploadTitle" placeholder="Título do vídeo" />
+        <input id="uploadFile" type="file" accept="video/mp4" required />
+        <button class="btn" type="submit">Enviar</button>
+      </form>
+      <div id="uploadStatus" class="muted"></div>
+    </div>
 
-      <!-- Gerenciar vídeos -->
-      <div class="card">
-        <h3>Vídeos hospedados</h3>
-        <div id="adminVideosList" class="list"></div>
-      </div>
+    <div class="card">
+      <h3>Vídeos hospedados</h3>
+      <div id="adminVideosList" class="list"></div>
+    </div>
 
-    </section>
-  </main>
-
-  <script>
-    // Upload handler
-    document.addEventListener("DOMContentLoaded", () => {
-      const form = document.getElementById("uploadVideoForm");
-      if (!form) return;
-
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const title = document.getElementById("uploadTitle").value.trim() || "Vídeo";
-        const file = document.getElementById("uploadFile").files[0];
-        const status = document.getElementById("uploadStatus");
-
-        if (!file) {
-          status.textContent = "Selecione um arquivo MP4.";
-          return;
-        }
-
-        status.textContent = "Enviando vídeo...";
-
-        const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
-
-        // UPLOAD para o bucket "aulas"
-        const { data, error } = await supabaseClient
-          .storage
-          .from("aulas")
-          .upload(fileName, file, { upsert: false });
-
-        if (error) {
-          status.textContent = "Erro ao enviar: " + error.message;
-          return;
-        }
-
-        const { publicUrl } = supabaseClient
-          .storage
-          .from("aulas")
-          .getPublicUrl(fileName).data;
-
-        // Salvar no Firestore
-        await db.collection("videos").add({
-          title,
-          type: "mp4",
-          url: publicUrl,
-          storagePath: fileName,
-          createdAt: Date.now()
-        });
-
-        status.textContent = "Vídeo enviado com sucesso!";
-        form.reset();
-        loadAdminLists();
-      });
-    });
-  </script>
+  </section>
+</main>
 </body>
 </html>
