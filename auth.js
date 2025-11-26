@@ -1,264 +1,301 @@
-// auth.js – COMPLETO E ATUALIZADO
+// auth.js
+// Usa Firebase v8 (compatível com firebase.js acima)
 
-// ==========================
-//  TEMA (dark/light)
-// ==========================
+// === Helpers ===
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/[&<>"'\/]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;'}[c];
+  });
+}
+
+// Extrai ID do Google Drive de um link de compartilhamento
+function extractDriveID(url){
+  if(!url) return null;
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+// Theme manager
 const Theme = {
-  init() {
-    const saved = localStorage.getItem("theme");
-    if (saved) document.documentElement.dataset.theme = saved;
+  load(){
+    const t = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    const btns = document.querySelectorAll('#themeToggle');
+    btns.forEach(b => b.textContent = t === 'dark' ? 'Light' : 'Dark');
   },
-  toggle() {
-    const root = document.documentElement;
-    const current = root.dataset.theme === "light" ? "dark" : "light";
-    root.dataset.theme = current;
-    localStorage.setItem("theme", current);
+  toggle(){
+    const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+    const nxt = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', nxt);
+    localStorage.setItem('theme', nxt);
+    const btns = document.querySelectorAll('#themeToggle');
+    btns.forEach(b => b.textContent = nxt === 'dark' ? 'Light' : 'Dark');
   }
 };
-Theme.init();
 
-// ==========================
-//  PROTEÇÃO DE PLAYER
-// ==========================
-function protectVideoElement(iframe) {
-  // Remove picture-in-picture
-  iframe.setAttribute("disablepictureinpicture", "");
-  iframe.setAttribute("controlsList", "nodownload nofullscreen noplaybackrate");
+// === Auth & UI wiring ===
+document.addEventListener('DOMContentLoaded', () => {
+  Theme.load();
 
-  // Overlay invisível bloqueando clique direto
-  const overlay = document.createElement("div");
-  overlay.style.position = "absolute";
-  overlay.style.top = 0;
-  overlay.style.left = 0;
-  overlay.style.width = "100%";
-  overlay.style.height = "100%";
-  overlay.style.zIndex = 5;
-  overlay.style.cursor = "default";
-  overlay.style.background = "transparent";
-  iframe.parentElement.style.position = "relative";
-  iframe.parentElement.appendChild(overlay);
-}
-
-// BLOQUEAR BOTÃO DIREITO
-document.addEventListener("contextmenu", e => e.preventDefault());
-
-// BLOQUEAR ARRASTAR
-document.addEventListener("dragstart", e => e.preventDefault());
-
-// BLOQUEAR ATALHOS (Ctrl+S, Ctrl+U, etc)
-document.addEventListener("keydown", e => {
-  if (
-    (e.ctrlKey && ["s", "u", "p", "S", "U", "P"].includes(e.key)) ||
-    e.key === "F12"
-  ) {
-    e.preventDefault();
-    return false;
+  // Login
+  const loginForm = document.getElementById('loginForm');
+  if (loginForm){
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if(!email || !password) return alert('Preencha email e senha.');
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        window.location.href = 'dashboard.html';
+      } catch(err){
+        alert('Erro: ' + err.message);
+      }
+    });
   }
-});
 
-// ==========================
-//  PARSE UNIVERSAL DE LINKS
-// ==========================
-function convertToEmbed(url) {
-  // GOOGLE DRIVE
-  if (url.includes("drive.google.com")) {
-    let id = null;
+  // Register
+  const registerForm = document.getElementById('registerForm');
+  if (registerForm){
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('regName') ? document.getElementById('regName').value.trim() : '';
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      if(!email || !password) return alert('Preencha email e senha.');
+      try {
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        const uid = cred.user.uid;
+        await db.collection('users').doc(uid).set({
+          uid,
+          email,
+          name: name || null,
+          authorized: false,
+          role: 'user',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        alert('Conta criada com sucesso! Aguarde autorização do administrador.');
+        await auth.signOut();
+        window.location.href = 'index.html';
+      } catch(err){
+        alert('Erro: ' + err.message);
+      }
+    });
+  }
 
-    // Padrão /d/FILE_ID/
-    const match1 = url.match(/\/d\/(.+?)\//);
-    if (match1) id = match1[1];
+  // Logout button (global)
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-    // Padrão ?id=FILE_ID
-    const match2 = url.match(/id=([^&]+)/);
-    if (!id && match2) id = match2[1];
+  // ADMIN: authorize user form
+  const addUserForm = document.getElementById('addUserForm');
+  if (addUserForm){
+    addUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value.trim();
+      if(!email) return alert('Digite um email válido.');
+      try {
+        const snap = await db.collection('users').where('email','==', email).get();
+        if (snap.empty){
+          return alert('Usuário não encontrado. Peça para o aluno se registrar primeiro.');
+        }
+        snap.forEach(async (doc) => {
+          await db.collection('users').doc(doc.id).update({ authorized: true });
+        });
+        alert('Usuário(s) autorizado(s).');
+        document.getElementById('authEmail').value = '';
+        loadAdminLists();
+      } catch(err){
+        alert('Erro: ' + err.message);
+      }
+    });
+  }
 
-    if (id) {
-      return `https://drive.google.com/file/d/${id}/preview`;
+  // ADMIN: add video form (Google Drive)
+  const addVideoForm = document.getElementById('addVideoForm');
+  if (addVideoForm){
+    addVideoForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('videoTitle').value.trim();
+      const url = document.getElementById('videoUrl').value.trim();
+      const id = extractDriveID(url);
+      if(!id) return alert('Link do Google Drive inválido. Cole o link completo.');
+      try {
+        await db.collection('videos').add({
+          title: title || null,
+          ytId: id,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert('Vídeo adicionado!');
+        document.getElementById('videoTitle').value = '';
+        document.getElementById('videoUrl').value = '';
+        loadAdminLists();
+      } catch(err){
+        alert('Erro: ' + err.message);
+      }
+    });
+  }
+
+  // Page protection and dynamic content loading
+  auth.onAuthStateChanged(async (user) => {
+    // Dashboard protection
+    const dashboardArea = document.getElementById('dashboard-content');
+    if (dashboardArea){
+      if (!user){
+        window.location.href = 'index.html';
+        return;
+      }
+      const udoc = await db.collection('users').doc(user.uid).get();
+      if (!udoc.exists){
+        alert('Perfil não encontrado. Contate o admin.');
+        await auth.signOut();
+        window.location.href = 'index.html';
+        return;
+      }
+      const udata = udoc.data();
+      if (udata.authorized !== true && udata.role !== 'admin'){
+        alert('Sua conta ainda não foi autorizada pelo administrador.');
+        await auth.signOut();
+        window.location.href = 'index.html';
+        return;
+      }
+      document.getElementById('userName') && (document.getElementById('userName').textContent = udata.name || udata.email);
+      loadStudentVideos();
     }
-  }
 
-  // YOUTUBE
-  if (url.includes("youtube.com/watch") || url.includes("youtu.be")) {
-    let id = null;
-
-    const match1 = url.match(/v=([^&]+)/);
-    if (match1) id = match1[1];
-
-    const match2 = url.match(/youtu\.be\/(.+)/);
-    if (!id && match2) id = match2[1];
-
-    if (id) {
-      return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&controls=0&disablekb=1`;
+    // Admin area protection
+    const adminArea = document.getElementById('admin-area');
+    if (adminArea){
+      if (!user){
+        window.location.href = 'index.html';
+        return;
+      }
+      const udoc = await db.collection('users').doc(user.uid).get();
+      if (!udoc.exists || udoc.data().role !== 'admin'){
+        alert('Acesso negado. É preciso ser administrador.');
+        window.location.href = 'dashboard.html';
+        return;
+      }
+      loadAdminLists();
     }
-  }
-
-  // DROPBOX
-  if (url.includes("dropbox.com")) {
-    return url.replace("?dl=0", "?raw=1");
-  }
-
-  // MEGA (não tem embed real → player próprio)
-  if (url.includes("mega.nz")) {
-    return `https://embed.mega.nz/embed/${btoa(url)}`;
-  }
-
-  // MP4 direto
-  if (url.endsWith(".mp4")) {
-    return url;
-  }
-
-  return url;
-}
-
-// ==========================
-//  FIREBASE AUTH
-// ==========================
-auth.onAuthStateChanged(async user => {
-  const path = window.location.pathname;
-
-  if (!user) {
-    if (!path.includes("index") && !path.includes("register"))
-      window.location.href = "index.html";
-    return;
-  }
-
-  // ROTAS
-  if (path.includes("admin")) {
-    loadAdmin(user);
-  } else if (path.includes("dashboard")) {
-    loadDashboard(user);
-  }
-});
-
-// ==========================
-//  ADMIN PAGE
-// ==========================
-async function loadAdmin(user) {
-  document.getElementById("logoutBtn").onclick = () => auth.signOut();
-
-  // Autorizar alunos
-  const addUserForm = document.getElementById("addUserForm");
-  const usersList = document.getElementById("usersList");
-
-  addUserForm.onsubmit = async e => {
-    e.preventDefault();
-    const email = document.getElementById("authEmail").value.trim();
-
-    await db.collection("allowedUsers").doc(email).set({
-      email,
-      createdAt: Date.now()
-    });
-
-    addUserForm.reset();
-    loadUsers();
-  };
-
-  async function loadUsers() {
-    const snap = await db.collection("allowedUsers").get();
-    usersList.innerHTML = "";
-
-    snap.forEach(doc => {
-      const u = doc.data();
-      const div = document.createElement("div");
-      div.className = "admin-row";
-      div.innerHTML = `
-        <span>${u.email}</span>
-        <button class="btn danger" onclick="removeUser('${u.email}')">Remover</button>
-      `;
-      usersList.appendChild(div);
-    });
-  }
-
-  window.removeUser = async email => {
-    await db.collection("allowedUsers").doc(email).delete();
-    loadUsers();
-  };
-
-  loadUsers();
-
-  // VÍDEOS (Drive/YT/etc)
-  const addVideoForm = document.getElementById("addVideoForm");
-  const adminVideosList = document.getElementById("adminVideosList");
-
-  addVideoForm.onsubmit = async e => {
-    e.preventDefault();
-    const title = document.getElementById("videoTitle").value.trim();
-    const url = document.getElementById("videoUrl").value.trim();
-
-    await db.collection("videos").add({
-      title: title || "Aula",
-      originalUrl: url,
-      embedUrl: convertToEmbed(url),
-      createdAt: Date.now()
-    });
-
-    addVideoForm.reset();
-    loadVideos();
-  };
-
-  async function loadVideos() {
-    const snap = await db.collection("videos").orderBy("createdAt").get();
-    adminVideosList.innerHTML = "";
-
-    snap.forEach(doc => {
-      const v = doc.data();
-      const div = document.createElement("div");
-      div.className = "admin-row";
-      div.innerHTML = `
-        <span>${v.title}</span>
-        <button class="btn danger" onclick="removeVideo('${doc.id}')">Remover</button>
-      `;
-      adminVideosList.appendChild(div);
-    });
-  }
-
-  window.removeVideo = async id => {
-    await db.collection("videos").doc(id).delete();
-    loadVideos();
-  };
-
-  loadVideos();
-}
-
-// ==========================
-//  DASHBOARD (ALUNOS)
-// ==========================
-async function loadDashboard(user) {
-  document.getElementById("logoutBtn").onclick = () => auth.signOut();
-  if (user.displayName) document.getElementById("userName").innerText = user.displayName;
-
-  // Ver se aluno é autorizado
-  const allowed = await db.collection("allowedUsers").doc(user.email).get();
-  if (!allowed.exists) {
-    document.body.innerHTML = "<h2 style='padding:40px;text-align:center'>Seu acesso não foi liberado ainda.</h2>";
-    return;
-  }
-
-  const list = document.getElementById("videosList");
-
-  const snap = await db.collection("videos").orderBy("createdAt").get();
-  list.innerHTML = "";
-
-  snap.forEach(doc => {
-    const v = doc.data();
-
-    const card = document.createElement("div");
-    card.className = "video-card";
-
-    card.innerHTML = `
-      <h3>${v.title}</h3>
-      <div class="video-embed">
-        <iframe src="${v.embedUrl}"
-          frameborder="0"
-          allowfullscreen
-        ></iframe>
-      </div>
-    `;
-
-    list.appendChild(card);
-
-    // Proteção
-    const iframe = card.querySelector("iframe");
-    protectVideoElement(iframe);
   });
+
+}); // DOMContentLoaded
+
+// === Logout ===
+async function logout(){
+  await auth.signOut();
+  window.location.href = 'index.html';
+}
+
+// === Student: load videos (Google Drive) ===
+async function loadStudentVideos(){
+  const listEl = document.getElementById('videosList');
+  if (!listEl) return;
+  listEl.innerHTML = '<p>Carregando vídeos...</p>';
+  const snap = await db.collection('videos').orderBy('createdAt','asc').get();
+  if (snap.empty){
+    listEl.innerHTML = '<p>Nenhum vídeo disponível ainda.</p>';
+    return;
+  }
+  listEl.innerHTML = '';
+  snap.forEach(doc => {
+    const d = doc.data();
+    const card = document.createElement('div');
+    card.className = 'video-card';
+    card.innerHTML = `
+      <h3>${escapeHtml(d.title || 'Mentoria')}</h3>
+      <video controls style="width:100%; border-radius:8px;" preload="metadata">
+        <source src="https://drive.google.com/uc?export=download&id=${d.ytId}" type="video/mp4">
+      </video>
+    `;
+    listEl.appendChild(card);
+  });
+}
+
+// === Admin: load lists ===
+async function loadAdminLists(){
+  const usersEl = document.getElementById('usersList');
+  if (usersEl){
+    usersEl.innerHTML = 'Carregando usuários...';
+    const snap = await db.collection('users').orderBy('createdAt','desc').get();
+    if (snap.empty){
+      usersEl.innerHTML = '<p>Sem usuários registrados</p>';
+    } else {
+      usersEl.innerHTML = '';
+      snap.forEach(doc => {
+        const d = doc.data();
+        const id = doc.id;
+        const row = document.createElement('div');
+        row.className = 'admin-row';
+        row.innerHTML = `
+          <div>
+            <strong>${escapeHtml(d.name || d.email)}</strong><br>
+            <small>${escapeHtml(d.email)}</small>
+          </div>
+          <div>
+            ${d.authorized ? `<button class="btn secondary" onclick="revokeUser('${id}')">Revogar</button>` : `<button class="btn" onclick="authorizeUser('${id}')">Autorizar</button>`}
+            ${d.role === 'admin' ? '<span style="margin-left:8px;font-weight:600;color:var(--accent)">ADMIN</span>' : ''}
+          </div>
+        `;
+        usersEl.appendChild(row);
+      });
+    }
+  }
+
+  const videosEl = document.getElementById('adminVideosList');
+  if (videosEl){
+    videosEl.innerHTML = 'Carregando vídeos...';
+    const snap = await db.collection('videos').orderBy('createdAt','desc').get();
+    if (snap.empty) videosEl.innerHTML = '<p>Sem vídeos</p>';
+    else {
+      videosEl.innerHTML = '';
+      snap.forEach(doc => {
+        const d = doc.data();
+        const id = doc.id;
+        const row = document.createElement('div');
+        row.className = 'admin-row';
+        row.innerHTML = `
+          <div><strong>${escapeHtml(d.title || '')}</strong><br><small>${escapeHtml(d.ytId)}</small></div>
+          <div><button class="btn danger" onclick="removeVideo('${id}')">Remover</button></div>
+        `;
+        videosEl.appendChild(row);
+      });
+    }
+  }
+}
+
+// === Admin actions ===
+async function authorizeUser(docId){
+  if(!confirm('Autorizar este usuário?')) return;
+  try {
+    await db.collection('users').doc(docId).update({ authorized: true });
+    alert('Usuário autorizado.');
+    loadAdminLists();
+  } catch(err){
+    alert('Erro: ' + err.message);
+  }
+}
+
+async function revokeUser(docId){
+  if(!confirm('Revogar autorização deste usuário?')) return;
+  try {
+    await db.collection('users').doc(docId).update({ authorized: false });
+    alert('Autorização revogada.');
+    loadAdminLists();
+  } catch(err){
+    alert('Erro: ' + err.message);
+  }
+}
+
+async function removeVideo(docId){
+  if(!confirm('Remover este vídeo?')) return;
+  try {
+    await db.collection('videos').doc(docId).delete();
+    alert('Vídeo removido.');
+    loadAdminLists();
+  } catch(err){
+    alert('Erro: ' + err.message);
+  }
 }
