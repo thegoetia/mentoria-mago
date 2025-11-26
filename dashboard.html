@@ -14,9 +14,9 @@
   <script src="auth.js" defer></script>
 
   <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const supabaseClient = supabase.createClient(
+    const supabase = window.supabase.createClient(
       "https://xjmmgvbzfsgjltzggysv.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4"
     );
@@ -24,22 +24,9 @@
 
   <style>
     .video-card { width: 100%; margin-bottom: 30px; }
-    .video-player {
-      width: 100%;
-      border-radius: 12px;
-      background: #000;
-      overflow: hidden;
-    }
-    video {
-      width: 100%;
-      height: auto;
-      pointer-events: auto;
-    }
-    .video-title {
-      margin-top: 10px;
-      font-weight: 600;
-      text-align: center;
-    }
+    .video-player { width: 100%; border-radius: 12px; background: #000; overflow: hidden; }
+    video { width: 100%; height: auto; pointer-events: auto; }
+    .video-title { margin-top: 10px; font-weight: 600; text-align: center; }
   </style>
 </head>
 
@@ -65,56 +52,5 @@
     <div id="videosList" class="videos-grid"></div>
   </section>
 </main>
-
-<script>
-firebase.auth().onAuthStateChanged(async (user) => {
-  if (!user) return window.location.href = 'index.html';
-
-  const list = document.getElementById('videosList');
-  list.innerHTML = '';
-  document.getElementById('userName').textContent = user.email;
-
-  // Buscar vídeos no Firestore
-  const snap = await firebase.firestore().collection('videos').orderBy('createdAt','asc').get();
-  if (snap.empty) {
-    list.innerHTML = '<p>Nenhum vídeo disponível.</p>';
-    document.getElementById('dashboard-content').style.display = 'block';
-    return;
-  }
-
-  for (const doc of snap.docs) {
-    const d = doc.data();
-    if (!d.storagePath) continue;
-
-    // Gerar URL assinada do Supabase
-    const { data, error } = await supabaseClient
-      .storage
-      .from('aulas')
-      .createSignedUrl(d.storagePath, 60 * 60); // URL válida por 1 hora
-
-    if (error || !data) continue;
-
-    const card = document.createElement('div');
-    card.className = 'video-card';
-
-    card.innerHTML = `
-      <div class="video-player">
-        <video controls disablePictureInPicture controlsList="nodownload">
-          <source src="${data.signedUrl}" type="video/mp4" />
-        </video>
-      </div>
-      <div class="video-title">${escapeHtml(d.title || 'Mentoria')}</div>
-    `;
-
-    list.appendChild(card);
-  }
-
-  document.getElementById('dashboard-content').style.display = 'block';
-});
-
-function escapeHtml(s){
-  return s ? s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])) : '';
-}
-</script>
 </body>
 </html>
