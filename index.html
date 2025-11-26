@@ -5,11 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Entrar • Mentoria</title>
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 
+  <!-- Seus JS -->
   <script src="firebase.js"></script>
   <script src="auth.js" defer></script>
 </head>
@@ -23,7 +28,8 @@
 
       <h2>Entrar</h2>
 
-      <form id="loginForm" class="form" onsubmit="return false;">
+      <!-- Form de login -->
+      <form id="loginForm" class="form">
         <label class="input">
           <input id="email" type="email" placeholder=" " required />
           <span class="label-text">Email</span>
