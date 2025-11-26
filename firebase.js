@@ -1,4 +1,5 @@
-
+// firebase.js
+// Sua config (já fornecida)
 const firebaseConfig = {
   apiKey: "AIzaSyAaRl3DLS2ocGmx1yeJoXVasdg7zKQC2Zs",
   authDomain: "mentoria-auth-871ad.firebaseapp.com",
