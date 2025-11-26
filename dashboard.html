@@ -10,19 +10,36 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
-
-  <!-- Seus JS -->
   <script src="firebase.js"></script>
   <script src="auth.js" defer></script>
 
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    const supabaseClient = supabase.createClient(
+      "https://xjmmgvbzfsgjltzggysv.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4"
+    );
+  </script>
+
   <style>
     .video-card { width: 100%; margin-bottom: 30px; }
-    .video-player { width: 100%; border-radius: 12px; background: #000; overflow: hidden; }
-    video { width: 100%; height: auto; pointer-events: auto; }
-    .video-title { margin-top: 10px; font-weight: 600; text-align: center; }
+    .video-player {
+      width: 100%;
+      border-radius: 12px;
+      background: #000;
+      overflow: hidden;
+    }
+    video {
+      width: 100%;
+      height: auto;
+      pointer-events: auto;
+    }
+    .video-title {
+      margin-top: 10px;
+      font-weight: 600;
+      text-align: center;
+    }
   </style>
 </head>
 
@@ -50,43 +67,36 @@
 </main>
 
 <script>
-const supabaseClient = supabase.createClient(
-  "https://xjmmgvbzfsgjltzggysv.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4"
-);
-
 firebase.auth().onAuthStateChanged(async (user) => {
   if (!user) return window.location.href = 'index.html';
 
-  // Mostra nome do usuário
-  const doc = await db.collection('users').doc(user.uid).get();
-  const udata = doc.data();
-  document.getElementById('userName').textContent = udata?.name || user.email;
-
   const list = document.getElementById('videosList');
   list.innerHTML = '';
+  document.getElementById('userName').textContent = user.email;
 
-  // Pega vídeos do Firestore
-  const snap = await db.collection('videos').orderBy('createdAt', 'asc').get();
+  // Buscar vídeos no Firestore
+  const snap = await firebase.firestore().collection('videos').orderBy('createdAt','asc').get();
   if (snap.empty) {
     list.innerHTML = '<p>Nenhum vídeo disponível.</p>';
     document.getElementById('dashboard-content').style.display = 'block';
     return;
   }
 
-  snap.forEach(async docSnap => {
-    const d = docSnap.data();
-    if (!d.filePath) return;
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    if (!d.storagePath) continue;
 
-    // Gera URL pública via Supabase
-    const { data, error } = await supabaseClient.storage
-      .from('videos')
-      .createSignedUrl(d.filePath, 60 * 60); // 1h de validade
+    // Gerar URL assinada do Supabase
+    const { data, error } = await supabaseClient
+      .storage
+      .from('aulas')
+      .createSignedUrl(d.storagePath, 60 * 60); // URL válida por 1 hora
 
-    if (error || !data) return;
+    if (error || !data) continue;
 
     const card = document.createElement('div');
     card.className = 'video-card';
+
     card.innerHTML = `
       <div class="video-player">
         <video controls disablePictureInPicture controlsList="nodownload">
@@ -95,8 +105,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
       </div>
       <div class="video-title">${escapeHtml(d.title || 'Mentoria')}</div>
     `;
+
     list.appendChild(card);
-  });
+  }
 
   document.getElementById('dashboard-content').style.display = 'block';
 });
