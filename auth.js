@@ -112,19 +112,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ADMIN: add video form (Google Drive)
+  // ADMIN: add video form
   const addVideoForm = document.getElementById('addVideoForm');
   if (addVideoForm){
     addVideoForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('videoTitle').value.trim();
       const url = document.getElementById('videoUrl').value.trim();
-      const id = extractDriveID(url);
-      if(!id) return alert('Link do Google Drive inválido. Cole o link completo.');
+      if(!url) return alert('Cole o link do vídeo.');
       try {
         await db.collection('videos').add({
           title: title || null,
-          ytId: id,
+          ytId: url,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         alert('Vídeo adicionado!');
@@ -189,7 +188,44 @@ async function logout(){
   window.location.href = 'index.html';
 }
 
-// === Student: load videos (Google Drive) ===
+// === Student: generate embed protegido multi-plataforma ===
+function generateProtectedEmbed(url){
+  const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const youtubeMatch = url.match(/(?:v=|\/)([A-Za-z0-9_-]{11})(?:$|&|\/|\?)/);
+  const dropboxMatch = url.match(/dropbox.com\/.*\/([a-zA-Z0-9_-]+)\?dl=/);
+  const megaMatch = url.match(/mega.nz\/file\/([a-zA-Z0-9_-]+)/);
+  const mp4Match = url.match(/\.mp4$/i);
+
+  if (driveMatch){
+    const id = driveMatch[1];
+    return `<video controls style="width:100%;border-radius:8px;" preload="metadata"
+              oncontextmenu="return false" ondragstart="return false" onselectstart="return false"
+              disablePictureInPicture controlsList="nodownload">
+              <source src="https://drive.google.com/uc?export=download&id=${id}" type="video/mp4">
+            </video>`;
+  } else if (youtubeMatch){
+    const id = youtubeMatch[1];
+    return `<iframe src="https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&controls=0&disablekb=1&iv_load_policy=3&fs=0"
+                    frameborder="0" allowfullscreen allow="autoplay; encrypted-media"
+                    oncontextmenu="return false"></iframe>`;
+  } else if (dropboxMatch){
+    return `<iframe src="${url.replace('?dl=0','?raw=1')}" frameborder="0" style="width:100%;height:400px;" 
+                    oncontextmenu="return false"></iframe>`;
+  } else if (megaMatch){
+    return `<iframe src="${url}" frameborder="0" style="width:100%;height:400px;"
+                    oncontextmenu="return false"></iframe>`;
+  } else if (mp4Match){
+    return `<video controls style="width:100%;border-radius:8px;" preload="metadata"
+              oncontextmenu="return false" ondragstart="return false" onselectstart="return false"
+              disablePictureInPicture controlsList="nodownload">
+              <source src="${url}" type="video/mp4">
+            </video>`;
+  } else {
+    return `<p>Formato de vídeo não suportado.</p>`;
+  }
+}
+
+// === Student: load videos ===
 async function loadStudentVideos(){
   const listEl = document.getElementById('videosList');
   if (!listEl) return;
@@ -206,9 +242,7 @@ async function loadStudentVideos(){
     card.className = 'video-card';
     card.innerHTML = `
       <h3>${escapeHtml(d.title || 'Mentoria')}</h3>
-      <video controls style="width:100%; border-radius:8px;" preload="metadata">
-        <source src="https://drive.google.com/uc?export=download&id=${d.ytId}" type="video/mp4">
-      </video>
+      ${generateProtectedEmbed(d.ytId)}
     `;
     listEl.appendChild(card);
   });
