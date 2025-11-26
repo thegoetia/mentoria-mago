@@ -5,52 +5,34 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Meu Painel • Mentoria</title>
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
   <script src="firebase.js"></script>
   <script src="auth.js" defer></script>
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const supabase = window.supabase.createClient(
-      "https://xjmmgvbzfsgjltzggysv.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4"
-    );
-  </script>
-
-  <style>
-    .video-card { width: 100%; margin-bottom: 30px; }
-    .video-player { width: 100%; border-radius: 12px; background: #000; overflow: hidden; }
-    video { width: 100%; height: auto; pointer-events: auto; }
-    .video-title { margin-top: 10px; font-weight: 600; text-align: center; }
-  </style>
 </head>
-
-<body oncontextmenu="return false">
-<header class="site-header">
-  <div class="container header-inner">
-    <h2>Mentoria</h2>
-    <div class="header-actions">
-      <span id="userName" class="muted"></span>
-      <button data-theme-toggle class="btn small" onclick="Theme.toggle()">Light</button>
-      <button data-logout class="btn ghost">Sair</button>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h2>Mentoria</h2>
+      <div class="header-actions">
+        <span id="userName" style="margin-right:12px"></span>
+        <button id="themeToggle" class="btn small" onclick="Theme.toggle()">Light</button>
+        <button id="logoutBtn" class="btn ghost">Sair</button>
+      </div>
     </div>
-  </div>
-</header>
+  </header>
 
-<main class="container">
-  <section id="dashboard-content" class="content-area" style="display:none">
-    <div class="welcome card">
-      <h1>Bem-vindo</h1>
-      <p>Abaixo estão as mentorias disponíveis para você (ordem cronológica).</p>
-    </div>
+  <main class="container">
+    <section id="dashboard-content" class="content-area">
+      <div class="welcome card">
+        <h1>Bem-vindo</h1>
+        <p>Abaixo estão as mentorias disponíveis para você:</p>
+      </div>
 
-    <div id="videosList" class="videos-grid"></div>
-  </section>
-</main>
+      <div id="videosList" class="videos-grid"></div>
+    </section>
+  </main>
 </body>
 </html>
