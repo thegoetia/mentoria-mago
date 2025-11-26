@@ -5,19 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Entrar • Mentoria</title>
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 
-  <!-- Firebase init -->
   <script src="firebase.js"></script>
-
-  <!-- Supabase client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.9.0/dist/supabase.min.js"></script>
-
-  <!-- Auth JS -->
   <script src="auth.js" defer></script>
 </head>
 <body>
@@ -25,12 +18,12 @@
     <section class="card form-card">
       <div class="brand">
         <h1>Mentoria</h1>
-        <button data-theme-toggle class="btn small">Light</button>
+        <button data-theme-toggle class="btn small" onclick="Theme.toggle()">Light</button>
       </div>
 
       <h2>Entrar</h2>
 
-      <form id="loginForm" class="form" novalidate>
+      <form id="loginForm" class="form">
         <label class="input">
           <input id="email" type="email" placeholder=" " required />
           <span class="label-text">Email</span>
