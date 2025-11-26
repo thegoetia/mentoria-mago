@@ -20,7 +20,7 @@
   <script>
     window.supabaseClient = supabase.createClient(
       "https://xjmmgvbzfsgjltzggysv.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR...SYG4"
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4"
     );
   </script>
 </head>
@@ -82,12 +82,16 @@
         const file = document.getElementById("uploadFile").files[0];
         const status = document.getElementById("uploadStatus");
 
-        if (!file) return;
+        if (!file) {
+          status.textContent = "Selecione um arquivo MP4.";
+          return;
+        }
 
         status.textContent = "Enviando vídeo...";
 
         const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
 
+        // UPLOAD para o bucket "aulas"
         const { data, error } = await supabaseClient
           .storage
           .from("aulas")
@@ -98,7 +102,7 @@
           return;
         }
 
-        const { publicURL } = supabaseClient
+        const { publicUrl } = supabaseClient
           .storage
           .from("aulas")
           .getPublicUrl(fileName).data;
@@ -107,7 +111,8 @@
         await db.collection("videos").add({
           title,
           type: "mp4",
-          url: publicURL,
+          url: publicUrl,
+          storagePath: fileName,
           createdAt: Date.now()
         });
 
