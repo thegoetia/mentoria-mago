@@ -9,8 +9,9 @@ function escapeHtml(s){
   });
 }
 
-// Extrai ID do Google Drive
+// Extrai ID do Google Drive de um link de compartilhamento
 function extractDriveID(url){
+  if(!url) return null;
   const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
   return m ? m[1] : null;
 }
@@ -119,11 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const title = document.getElementById('videoTitle').value.trim();
       const url = document.getElementById('videoUrl').value.trim();
       const id = extractDriveID(url);
-      if(!id) return alert('URL do Google Drive inválida. Cole o link de compartilhamento completo.');
+      if(!id) return alert('Link do Google Drive inválido. Cole o link completo.');
       try {
         await db.collection('videos').add({
           title: title || null,
-          driveId: id,
+          ytId: id,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         alert('Vídeo adicionado!');
@@ -203,12 +204,10 @@ async function loadStudentVideos(){
     const d = doc.data();
     const card = document.createElement('div');
     card.className = 'video-card';
-    const videoURL = `https://drive.google.com/uc?export=download&id=${d.driveId}`;
     card.innerHTML = `
       <h3>${escapeHtml(d.title || 'Mentoria')}</h3>
       <video controls style="width:100%; border-radius:8px;" preload="metadata">
-        <source src="${videoURL}" type="video/mp4">
-        Seu navegador não suporta vídeo.
+        <source src="https://drive.google.com/uc?export=download&id=${d.ytId}" type="video/mp4">
       </video>
     `;
     listEl.appendChild(card);
@@ -258,7 +257,7 @@ async function loadAdminLists(){
         const row = document.createElement('div');
         row.className = 'admin-row';
         row.innerHTML = `
-          <div><strong>${escapeHtml(d.title || '')}</strong><br><small>${escapeHtml(d.driveId)}</small></div>
+          <div><strong>${escapeHtml(d.title || '')}</strong><br><small>${escapeHtml(d.ytId)}</small></div>
           <div><button class="btn danger" onclick="removeVideo('${id}')">Remover</button></div>
         `;
         videosEl.appendChild(row);
