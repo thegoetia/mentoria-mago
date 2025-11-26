@@ -1,108 +1,63 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Painel Admin</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Painel Admin • Mentoria</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-  <style>
-    body {
-      user-select: none;
-    }
-    video {
-      pointer-events: none;
-    }
-  </style>
-
-  <script>
-    // Bloqueia botão direito
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
-
-    // Bloqueia arrastar
-    document.addEventListener("dragstart", (e) => e.preventDefault());
-  </script>
+  <script src="firebase.js"></script>
+  <script src="auth.js" defer></script>
 </head>
 <body>
-
-  <div class="container">
-    <h1>Painel Admin</h1>
-
-    <div class="form-box">
-      <h2>Enviar nova aula</h2>
-
-      <input type="text" id="lesson-title" placeholder="Título da aula" />
-
-      <input type="text" id="lesson-link" placeholder="Cole o link da aula (Drive, YouTube, Dropbox...)" />
-
-      <button id="send-btn">Enviar Aula</button>
-
-      <p id="status"></p>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h2>Mentoria - Admin</h2>
+      <div class="header-actions">
+        <span id="userName" style="margin-right:12px"></span>
+        <button id="themeToggle" class="btn small" onclick="Theme.toggle()">Light</button>
+        <button id="logoutBtn" class="btn ghost">Sair</button>
+      </div>
     </div>
+  </header>
 
-    <hr />
+  <main class="container" id="admin-area">
+    <section class="content-area">
+      <div class="welcome card">
+        <h1>Área do Administrador</h1>
+        <p>Gerencie usuários e vídeos aqui:</p>
+      </div>
 
-    <h2>Aulas enviadas</h2>
-    <ul id="lessons-list"></ul>
+      <!-- Autorizar usuário -->
+      <div class="card">
+        <h2>Autorizar usuário</h2>
+        <form id="addUserForm" class="form-inline">
+          <input type="email" id="authEmail" placeholder="Email do aluno" required />
+          <button type="submit" class="btn primary">Autorizar</button>
+        </form>
+        <div id="usersList" class="list"></div>
+      </div>
 
-  </div>
-
-  <script>
-    const sendBtn = document.getElementById("send-btn");
-    const statusText = document.getElementById("status");
-    const list = document.getElementById("lessons-list");
-
-    async function loadLessons() {
-      const res = await fetch("/api/getLessons");
-      const data = await res.json();
-
-      list.innerHTML = "";
-
-      data.lessons
-        .sort((a, b) => a.createdAt - b.createdAt)
-        .forEach((lesson) => {
-          let li = document.createElement("li");
-          li.innerHTML = `
-            <strong>${lesson.title}</strong><br>
-            <video width="400" controls src="${lesson.finalUrl}"></video>
-          `;
-          list.appendChild(li);
-        });
-    }
-
-    sendBtn.onclick = async () => {
-      const title = document.getElementById("lesson-title").value.trim();
-      const link = document.getElementById("lesson-link").value.trim();
-
-      if (!title || !link) {
-        statusText.innerText = "Preencha todos os campos!";
-        return;
-      }
-
-      statusText.innerText = "Processando link...";
-
-      const res = await fetch("/api/processLink", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, link })
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        statusText.innerText = "Erro ao processar link!";
-        return;
-      }
-
-      statusText.innerText = "Aula enviada com sucesso!";
-      document.getElementById("lesson-title").value = "";
-      document.getElementById("lesson-link").value = "";
-
-      loadLessons();
-    };
-
-    loadLessons();
-  </script>
-
+      <!-- Adicionar vídeo -->
+      <div class="card">
+        <h2>Adicionar vídeo</h2>
+        <form id="addVideoForm" class="form">
+          <label class="input">
+            <input id="videoTitle" type="text" placeholder=" " />
+            <span class="label-text">Título do vídeo</span>
+          </label>
+          <label class="input">
+            <input id="videoUrl" type="text" placeholder=" " required />
+            <span class="label-text">Link do vídeo (YouTube, Google Drive, Dropbox, Mega, MP4)</span>
+          </label>
+          <button type="submit" class="btn primary">Adicionar vídeo</button>
+        </form>
+        <div id="adminVideosList" class="list"></div>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
