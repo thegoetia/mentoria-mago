@@ -25,24 +25,24 @@
 
   <main class="container">
     <section id="admin-area" class="admin-grid">
+      <!-- Autorizar aluno -->
       <div class="card">
         <h3>Autorizar aluno</h3>
         <form id="addUserForm" class="form-inline">
           <input id="authEmail" type="email" placeholder="Email do aluno" required />
           <button class="btn" type="submit">Autorizar</button>
         </form>
-
         <div id="usersList" class="list"></div>
       </div>
 
+      <!-- Gerenciar vídeos (Google Drive) -->
       <div class="card">
         <h3>Gerenciar vídeos</h3>
         <form id="addVideoForm" class="form">
           <input id="videoTitle" placeholder="Título (opcional)" />
-          <input id="videoUrl" placeholder="Link do YouTube (https://...)" required />
+          <input id="videoUrl" placeholder="Cole o link do Google Drive (https://drive.google.com/...)" required />
           <button class="btn" type="submit">Adicionar vídeo</button>
         </form>
-
         <div id="adminVideosList" class="list"></div>
       </div>
     </section>
