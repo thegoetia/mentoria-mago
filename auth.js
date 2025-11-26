@@ -1,5 +1,5 @@
 // =======================
-//  AUTH.JS (CORRIGIDO - upload Supabase seguro)
+// AUTH.JS (Firebase + Supabase corrigido e login fix)
 // =======================
 
 // ---------- Helpers ----------
@@ -17,7 +17,7 @@ function extractYouTubeID(url){
   return m ? m[1] : null;
 }
 
-// Theme manager
+// ---------- Theme Manager ----------
 const Theme = {
   load(){
     const t = localStorage.getItem('theme') || 'dark';
@@ -45,24 +45,23 @@ document.addEventListener('DOMContentLoaded', () => {
   Theme.load();
 
   // ==========================
-  // SUPABASE CLIENT UNIFICADO
+  // SUPABASE CLIENT
   // ==========================
   const SUPABASE_URL = "https://xjmmgvbzfsgjltzggysv.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
-  const supabaseClient = window.supabaseClient || supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbW1ndmJ6ZnNnamx0emdneXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwOTI3MDAsImV4cCI6MjA3OTY2ODcwMH0.UpJk8za096938yDfFXiLaFF7fYdZfuKA5v1Wo4xSYG4";
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  if (!supabaseClient){
-    console.warn("⚠ SupabaseClient não disponível");
-  }
-
-  // LOGIN
+  // ------------------ LOGIN ------------------
   const loginForm = document.getElementById('loginForm');
   if (loginForm){
-    loginForm.addEventListener('submit', async (e) => {
+    loginForm.addEventListener('submit', async function(e){
       e.preventDefault();
+      e.stopPropagation(); // previne conflitos de outros listeners
+
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       if(!email || !password) return toast('Preencha email e senha');
+
       try {
         await auth.signInWithEmailAndPassword(email, password);
         window.location.href = 'dashboard.html';
@@ -72,11 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // REGISTER
+  // ------------------ REGISTER ------------------
   const registerForm = document.getElementById('registerForm');
   if (registerForm){
-    registerForm.addEventListener('submit', async (e) => {
+    registerForm.addEventListener('submit', async (e)=>{
       e.preventDefault();
+
       const name = document.getElementById('regName') ? document.getElementById('regName').value.trim() : '';
       const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value;
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // LOGOUT
+  // ------------------ LOGOUT ------------------
   document.querySelectorAll('[data-logout]').forEach(b => {
     b.addEventListener('click', async () => {
       await auth.signOut();
@@ -115,11 +115,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ==========================================
-  // ADMIN — UPLOAD DE VÍDEO (SUPABASE STORAGE)
-  // ==========================================
+  // ==========================
+  // ADMIN — UPLOAD DE VÍDEO
+  // ==========================
   const uploadForm = document.getElementById("uploadVideoForm");
-
   if (uploadForm){
     uploadForm.addEventListener("submit", async (e)=>{
       e.preventDefault();
@@ -133,46 +132,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
       status.textContent = "Enviando vídeo...";
 
+      const fileExt = file.name.split('.').pop();
       const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
 
-      try {
-        // Upload usando método seguro para navegador
-        const { data, error } = await supabaseClient
-          .storage
-          .from("videos")
-          .upload(fileName, file);
+      // UPLOAD Supabase (corrigido para evitar Invalid Compact JWS)
+      const { data, error } = await supabaseClient
+        .storage
+        .from("videos")
+        .upload(fileName, file, { upsert: false });
 
-        if (error) throw error;
-
-        const { data: urlData } = supabaseClient
-          .storage
-          .from("videos")
-          .getPublicUrl(fileName);
-
-        // Registrar no Firestore
-        await db.collection("videos").add({
-          title,
-          url: urlData.publicUrl,
-          filePath: fileName,
-          type: "mp4",
-          createdAt: Date.now()
-        });
-
-        status.textContent = "Vídeo enviado com sucesso!";
-        uploadForm.reset();
-        loadAdminLists();
-
-      } catch(err) {
-        console.error(err);
-        status.textContent = "Erro ao enviar: " + (err.message || err);
+      if (error){
+        status.textContent = "Erro ao enviar: " + error.message;
+        return;
       }
+
+      // URL pública
+      const { publicUrl, error: urlError } = supabaseClient
+        .storage
+        .from("videos")
+        .getPublicUrl(fileName);
+
+      if (urlError){
+        status.textContent = "Erro ao obter URL pública: " + urlError.message;
+        return;
+      }
+
+      // Registrar no Firestore
+      await db.collection("videos").add({
+        title,
+        url: publicUrl,
+        filePath: fileName,
+        type: "mp4",
+        createdAt: Date.now()
+      });
+
+      status.textContent = "Vídeo enviado com sucesso!";
+      uploadForm.reset();
+      loadAdminLists();
     });
   }
 
   // =====================
   // PROTEÇÃO DAS PÁGINAS
   // =====================
-  auth.onAuthStateChanged(async (user) => {
+  auth.onAuthStateChanged(async (user)=>{
 
     // ---------- DASHBOARD ----------
     const dashArea = document.getElementById('dashboard-content');
@@ -256,8 +259,10 @@ async function loadStudentVideos(){
 
 window.playVideo = function(overlay){
   const video = overlay.parentElement.querySelector("video");
+
   overlay.style.display = "none";
   video.style.pointerEvents = "auto";
+
   video.play().catch(()=>{});
 };
 
