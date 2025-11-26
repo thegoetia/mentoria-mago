@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Painel Admin • Mentoria</title>
+  <title>Admin • Mentoria</title>
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -15,7 +17,7 @@
 <body>
   <header class="site-header">
     <div class="container header-inner">
-      <h2>Mentoria - Admin</h2>
+      <h2>Admin • Mentoria</h2>
       <div class="header-actions">
         <span id="userName" style="margin-right:12px"></span>
         <button id="themeToggle" class="btn small" onclick="Theme.toggle()">Light</button>
@@ -26,38 +28,35 @@
 
   <main class="container" id="admin-area">
     <section class="content-area">
-      <div class="welcome card">
-        <h1>Área do Administrador</h1>
-        <p>Gerencie usuários e vídeos aqui:</p>
-      </div>
-
-      <!-- Autorizar usuário -->
+      <!-- Autorizar usuários -->
       <div class="card">
-        <h2>Autorizar usuário</h2>
+        <h3>Autorizar usuários</h3>
         <form id="addUserForm" class="form-inline">
-          <input type="email" id="authEmail" placeholder="Email do aluno" required />
-          <button type="submit" class="btn primary">Autorizar</button>
+          <input type="email" id="authEmail" placeholder="Email do usuário" required />
+          <button class="btn primary" type="submit">Autorizar</button>
         </form>
         <div id="usersList" class="list"></div>
       </div>
 
-      <!-- Adicionar vídeo -->
+      <!-- Adicionar vídeos -->
       <div class="card">
-        <h2>Adicionar vídeo</h2>
-        <form id="addVideoForm" class="form">
-          <label class="input">
-            <input id="videoTitle" type="text" placeholder=" " />
-            <span class="label-text">Título do vídeo</span>
-          </label>
-          <label class="input">
-            <input id="videoUrl" type="text" placeholder=" " required />
-            <span class="label-text">Link do vídeo (YouTube, Google Drive, Dropbox, Mega, MP4)</span>
-          </label>
-          <button type="submit" class="btn primary">Adicionar vídeo</button>
+        <h3>Adicionar vídeo</h3>
+        <form id="addVideoForm" class="form-inline">
+          <input type="text" id="videoTitle" placeholder="Título da aula" />
+          <input type="text" id="videoUrl" placeholder="Link do vídeo (YouTube, Drive, Dropbox, Mega, MP4)" required />
+          <button class="btn primary" type="submit">Adicionar</button>
         </form>
         <div id="adminVideosList" class="list"></div>
       </div>
     </section>
   </main>
+
+  <script>
+    // Bloqueio global de clique direito
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    // Bloqueio de arrastar / selecionar / picture-in-picture
+    document.addEventListener('dragstart', event => event.preventDefault());
+    document.addEventListener('selectstart', event => event.preventDefault());
+  </script>
 </body>
 </html>
