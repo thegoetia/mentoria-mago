@@ -56,14 +56,19 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loginForm){
     loginForm.addEventListener('submit', async function(e){
       e.preventDefault();
-      e.stopPropagation();
 
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       if(!email || !password) return toast('Preencha email e senha');
 
       try {
-        await auth.signInWithEmailAndPassword(email, password);
+        // aguarda o login do Firebase
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        if(!user) throw new Error("Usuário não encontrado.");
+
+        // redireciona para dashboard
         window.location.href = 'dashboard.html';
       } catch(err){
         toast(err.message);
@@ -134,7 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
 
-      // UPLOAD Supabase (corrigido para evitar Invalid Compact JWS)
       const { data, error } = await supabaseClient
         .storage
         .from("videos")
@@ -145,14 +149,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // URL pública
-      const publicUrl = supabaseClient
+      const { data: urlData } = supabaseClient
         .storage
         .from("videos")
-        .getPublicUrl(fileName)
-        .data.publicUrl;
+        .getPublicUrl(fileName);
 
-      // Registrar no Firestore
+      const publicUrl = urlData.publicUrl;
+
       await db.collection("videos").add({
         title,
         url: publicUrl,
@@ -172,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // =====================
   auth.onAuthStateChanged(async (user)=>{
 
-    // ---------- DASHBOARD ----------
     const dashArea = document.getElementById('dashboard-content');
     if (dashArea){
       if(!user) return window.location.href = 'index.html';
@@ -180,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const udoc = await db.collection('users').doc(user.uid).get();
       const udata = udoc.data();
 
-      if (udata.authorized !== true && udata.role !== 'admin'){
+      if (!udata || (udata.authorized !== true && udata.role !== 'admin')){
         toast("Conta não autorizada.");
         await auth.signOut();
         return window.location.href = 'index.html';
@@ -193,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
       attachDashboardProtection();
     }
 
-    // ---------- ADMIN ----------
     const adminArea = document.getElementById('admin-area');
     if (adminArea){
       if(!user) return window.location.href = 'index.html';
@@ -215,7 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==============================
 // FUNÇÕES AUXILIARES
 // ==============================
-
 async function loadStudentVideos(){
   const listEl = document.getElementById("videosList");
   if (!listEl) return;
@@ -239,12 +239,7 @@ async function loadStudentVideos(){
     wrapper.innerHTML = `
       <div class="iframe-protect">
         <div class="video-overlay" onclick="playVideo(this)"></div>
-        <video
-          preload="none"
-          src="${escapeHtml(d.url)}"
-          controls
-          style="width:100%; height:100%; pointer-events:none; border-radius:12px;"
-        ></video>
+        <video preload="none" src="${escapeHtml(d.url)}" controls style="width:100%; height:100%; pointer-events:none; border-radius:12px;"></video>
       </div>
       <h3 class="video-title">${escapeHtml(d.title)}</h3>
     `;
@@ -255,16 +250,13 @@ async function loadStudentVideos(){
 
 window.playVideo = function(overlay){
   const video = overlay.parentElement.querySelector("video");
-
   overlay.style.display = "none";
   video.style.pointerEvents = "auto";
-
   video.play().catch(()=>{});
 };
 
 async function loadAdminLists(){
 
-  // ----- USERS -----
   const usersEl = document.getElementById('usersList');
   if (usersEl){
     usersEl.innerHTML = "Carregando...";
@@ -301,11 +293,10 @@ async function loadAdminLists(){
     }
   }
 
-  // ----- VIDEOS -----
   const videosEl = document.getElementById('adminVideosList');
   if (videosEl){
     videosEl.innerHTML = "Carregando...";
-    const snap = await db.collection('videos').orderBy('createdAt','asc').get();
+    const snap = await db.collection("videos").orderBy("createdAt","asc").get();
 
     if (snap.empty){
       videosEl.innerHTML = "<p>Sem vídeos</p>";
@@ -332,7 +323,6 @@ async function loadAdminLists(){
       });
     }
   }
-
 }
 
 window.authorizeUser = async function(docId){
