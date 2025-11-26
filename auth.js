@@ -62,13 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if(!email || !password) return toast('Preencha email e senha');
 
       try {
-        // aguarda o login do Firebase
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         const user = userCredential.user;
-
         if(!user) throw new Error("Usuário não encontrado.");
-
-        // redireciona para dashboard
         window.location.href = 'dashboard.html';
       } catch(err){
         toast(err.message);
@@ -121,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================
-  // ADMIN — UPLOAD DE VÍDEO
+  // ADMIN — UPLOAD DE VÍDEO (bucket "aulas")
   // ==========================
   const uploadForm = document.getElementById("uploadVideoForm");
   if (uploadForm){
@@ -139,9 +135,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const fileName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9\.]/g, "_");
 
+      // Upload para bucket "aulas"
       const { data, error } = await supabaseClient
         .storage
-        .from("videos")
+        .from("aulas")
         .upload(fileName, file, { upsert: false });
 
       if (error){
@@ -149,9 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      // Gerar URL pública
       const { data: urlData } = supabaseClient
         .storage
-        .from("videos")
+        .from("aulas")
         .getPublicUrl(fileName);
 
       const publicUrl = urlData.publicUrl;
@@ -296,7 +294,7 @@ async function loadAdminLists(){
   const videosEl = document.getElementById('adminVideosList');
   if (videosEl){
     videosEl.innerHTML = "Carregando...";
-    const snap = await db.collection("videos").orderBy("createdAt","asc").get();
+    const snap = await db.collection("videos").orderBy('createdAt','asc').get();
 
     if (snap.empty){
       videosEl.innerHTML = "<p>Sem vídeos</p>";
